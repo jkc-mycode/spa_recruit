@@ -112,4 +112,30 @@ router.patch('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
     }
 });
 
+// 이력서 삭제 API
+router.delete('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
+    try {
+        // 사용자 ID를 가져옴
+        const { userId } = req.user;
+        // 이력서 ID를 가져옴
+        const { resumeId } = req.params;
+
+        // 이력서 ID, 작성자 ID가 모두 일치한 이력서 조회
+        const resume = await prisma.resumes.findFirst({
+            where: { resumeId: +resumeId, UserId: +userId },
+        });
+        if (!resume) {
+            return res.status(401).json({ status: 401, message: '이력서가 존재하지 않습니다.' });
+        }
+        const deletedResume = await prisma.resumes.delete({
+            where: { resumeId: +resumeId, UserId: +userId },
+            select: { resumeId: true },
+        });
+
+        return res.status(201).json({ status: 201, message: '이력서 삭제가 성공했습니다.', data: { deletedResume } });
+    } catch (err) {
+        next(err);
+    }
+});
+
 export default router;
