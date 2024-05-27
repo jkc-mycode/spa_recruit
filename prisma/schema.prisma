@@ -9,6 +9,56 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+model Users {
+  userId       Int      @id @default(autoincrement()) @map("userId")
+  email        String   @map("email")
+  name         String   @map("name")
+  age          Int      @map("age")
+  gender       String   @map("gender")
+  role         String   @default("APPLICANT") @map("role")
+  profileImage String   @map("profileImage")
+  createdAt    DateTime @default(now()) @map("createdAt")
+  updatedAt    DateTime @updatedAt @map("updatedAt")
+
+  Resume Resumes[] // 1명의 사용자는 여러 개의 이력서 작성 가능 (1:N 관계 형성)
+
+  @@map("Users")
+}
+
+model Resumes {
+  resumeId  Int      @id @default(autoincrement()) @map("resumeId")
+  UserId    Int      @map("UserId") // Users 테이블을 참조하는 외래키
+  UserName  String   @map("UserName")
+  title     String   @map("title")
+  introduce String   @map("introduce") @db.Text
+  state     String   @default("APPLY") @map("state")
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  ResumeHistory ResumeHistories[] // 1개의 이력서에는 여러 개의 이력서 로그 기록이 존재 (1:N 관계 형성)
+
+  // Users 테이블과의 관계 설정
+  User Users @relation(fields: [UserId], references: [userId], onDelete: Cascade)
+
+  @@map("Resumes")
+}
+
+model ResumeHistories {
+  resumeLogId   Int      @id @default(autoincrement()) @map("resumeLogId")
+  ResumeId      Int      @map("ResumeId") // Resumes 테이블을 참조하는 외래키
+  RecruiterId   Int      @map("RecruiterId")
+  RecruiterName String   @map("RecruiterName")
+  oldState      String   @map("oldState")
+  newState      String   @map("newState")
+  reason        String   @map("reason")
+  createdAt     DateTime @default(now()) @map("createdAt")
+
+  // Rsumes 테이블과의 관계 설정
+  Resume Resumes @relation(fields: [ResumeId], references: [resumeId], onDelete: Cascade)
+
+  @@map("ResumeHistories")
 }
