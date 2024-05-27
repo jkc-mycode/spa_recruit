@@ -2,6 +2,7 @@ import express from 'express';
 import { prisma } from '../utils/prisma.util.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import authMiddleware from '../middlewares/auth.middleware.js';
 
 import { signUpSchema, signInSchema } from '../schemas/joi.schema.js';
 
@@ -73,6 +74,10 @@ router.post('/auth/sign-in', async (req, res, next) => {
     } catch (err) {
         next(err);
     }
+});
+
+router.get('/users', authMiddleware, async (req, res, next) => {
+    console.log(req.user);
 });
 
 export default router;
