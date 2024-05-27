@@ -76,8 +76,23 @@ router.post('/auth/sign-in', async (req, res, next) => {
     }
 });
 
-router.get('/users', authMiddleware, async (req, res, next) => {
-    console.log(req.user);
+// 내 정보 조회 API
+router.get('/users', authMiddleware, async (req, res) => {
+    const { userId } = req.user;
+
+    const user = await prisma.users.findFirst({
+        where: { userId },
+        select: {
+            userId: true,
+            email: true,
+            name: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true,
+        },
+    });
+
+    return res.status(200).json({ message: '내 정보 조회에 성공했습니다.', data: { user } });
 });
 
 export default router;
