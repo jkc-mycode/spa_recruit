@@ -65,3 +65,18 @@ export const signInSchema = Joi.object({
         'string.pattern.base': '비밀번호가 형식에 맞지 않습니다. (영문, 숫자, 특수문자 포함 6~15자)',
     }),
 });
+
+// 이력서 작성 유효성 검사
+export const resumeWriteSchema = Joi.object({
+    title: Joi.string().required().messages({
+        'string.base': '제목은 문자열이어야 합니다.',
+        'string.empty': '제목을 입력해주세요.',
+        'any.required': '제목을 입력해주세요.',
+    }),
+    introduce: Joi.string().min(150).required().messages({
+        'string.base': '제목은 문자열이어야 합니다.',
+        'string.min': '자기소개는 150자 이상 작성해야 합니다.',
+        'string.empty': '제목을 입력해주세요.',
+        'any.required': '제목을 입력해주세요.',
+    }),
+});

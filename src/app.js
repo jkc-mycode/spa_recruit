@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
 import UserRouter from './routers/users.router.js';
+import ResumeRouter from './routers/resumes.router.js';
 
 import errorHandingMiddleware from './middlewares/error-handing.middleware.js';
 
@@ -14,7 +15,7 @@ const SERVER_PORT = process.env.SERVER_PORT;
 app.use(express.json());
 app.use(cookieParser());
 
-app.use('/api', [UserRouter]);
+app.use('/api', [UserRouter, ResumeRouter]);
 app.use(errorHandingMiddleware);
 
 app.listen(SERVER_PORT, () => {
