@@ -33,12 +33,17 @@ router.post('/resumes', authMiddleware, async (req, res, next) => {
 // 이력서 목록 조회 API
 router.get('/resumes', authMiddleware, async (req, res) => {
     // 사용자 ID를 가져옴
-    const { userId } = req.user;
+    const user = req.user;
     // 정렬 조건을 req.query로 가져옴
     const sortType = req.query.sort.toLowerCase();
+    // 필터링 조건을 가져옴
+    const stateFilter = req.query.status.toUpperCase();
 
     const resumes = await prisma.resumes.findMany({
-        where: { UserId: +userId },
+        where: {
+            // AND 배열 연산을 통해서 필터링
+            AND: [user.role === 'RECRUITER' ? {} : { UserId: +user.userId }, stateFilter === '' ? {} : { state: stateFilter }],
+        },
         select: {
             resumeId: true,
             User: { select: { name: true } },
