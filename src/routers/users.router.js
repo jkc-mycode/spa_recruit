@@ -68,7 +68,7 @@ router.post('/auth/sign-in', async (req, res, next) => {
 
         // 로그인 성공하면 JWT 토큰 발급
         const AccessToken = jwt.sign({ userId: user.userId }, process.env.CUSTOMIZED_SECRET_KEY, { expiresIn: '12h' });
-        res.cookie('Authorization', `Bearer ${AccessToken}`);
+        // res.setHeader('authorization', `Bearer ${AccessToken}`);
 
         return res.status(200).json({ status: 200, message: '로그인에 성공했습니다.', data: { AccessToken } });
     } catch (err) {
