@@ -5,11 +5,12 @@ import jwt from 'jsonwebtoken';
 export default async (req, res, next) => {
     try {
         // 쿠키에서 Access 토큰 가져옴
-        const { Authorization } = req.cookies;
-        if (!Authorization) throw new Error('인증 정보가 없습니다.');
+        const authorization = req.headers['authorization'];
+        console.log(req.headers);
+        if (!authorization) throw new Error('인증 정보가 없습니다.');
 
         // Access 토큰이 Bearer 형식인지 확인
-        const [tokenType, token] = Authorization.split(' ');
+        const [tokenType, token] = authorization.split(' ');
         if (tokenType !== 'Bearer') throw new Error('지원하지 않는 인증 방식입니다.');
 
         // 서버에서 발급한 JWT가 맞는지 검증
