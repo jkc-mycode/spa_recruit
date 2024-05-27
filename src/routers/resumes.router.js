@@ -32,7 +32,7 @@ router.post('/resumes', authMiddleware, async (req, res, next) => {
 
 // 이력서 목록 조회 API
 router.get('/resumes', authMiddleware, async (req, res) => {
-    // 사용자 ID를 가져옴
+    // 사용자를 가져옴
     const user = req.user;
     // 정렬 조건을 req.query로 가져옴
     const sortType = req.query.sort.toLowerCase();
@@ -61,14 +61,14 @@ router.get('/resumes', authMiddleware, async (req, res) => {
 
 // 이력서 상세 조회 API
 router.get('/resumes/:resumeId', authMiddleware, async (req, res) => {
-    // 사용자 ID를 가져옴
-    const { userId } = req.user;
+    // 사용자를 가져옴
+    const user = req.user;
     // 이력서 ID를 가져옴
     const { resumeId } = req.params;
 
     // 이력서 ID, 작성자 ID가 모두 일치한 이력서 조회
     const resume = await prisma.resumes.findFirst({
-        where: { resumeId: +resumeId, UserId: +userId },
+        where: user.role === 'RECRUITER' ? { resumeId: +resumeId } : { resumeId: +resumeId, UserId: +user.userId },
         select: {
             resumeId: true,
             User: { select: { name: true } },
