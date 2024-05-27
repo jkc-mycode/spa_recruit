@@ -33,7 +33,6 @@ model Users {
 model Resumes {
   resumeId  Int      @id @default(autoincrement()) @map("resumeId")
   UserId    Int      @map("UserId") // Users 테이블을 참조하는 외래키
-  UserName  String   @map("UserName")
   title     String   @map("title")
   introduce String   @map("introduce") @db.Text
   state     String   @default("APPLY") @map("state")
@@ -49,14 +48,13 @@ model Resumes {
 }
 
 model ResumeHistories {
-  resumeLogId   Int      @id @default(autoincrement()) @map("resumeLogId")
-  ResumeId      Int      @map("ResumeId") // Resumes 테이블을 참조하는 외래키
-  RecruiterId   Int      @map("RecruiterId")
-  RecruiterName String   @map("RecruiterName")
-  oldState      String   @map("oldState")
-  newState      String   @map("newState")
-  reason        String   @map("reason")
-  createdAt     DateTime @default(now()) @map("createdAt")
+  resumeLogId Int      @id @default(autoincrement()) @map("resumeLogId")
+  ResumeId    Int      @map("ResumeId") // Resumes 테이블을 참조하는 외래키
+  RecruiterId Int      @map("RecruiterId")
+  oldState    String   @map("oldState")
+  newState    String   @map("newState")
+  reason      String   @map("reason")
+  createdAt   DateTime @default(now()) @map("createdAt")
 
   // Rsumes 테이블과의 관계 설정
   Resume Resumes @relation(fields: [ResumeId], references: [resumeId], onDelete: Cascade)
