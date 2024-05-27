@@ -81,4 +81,35 @@ router.get('/resumes/:resumeId', authMiddleware, async (req, res) => {
     return res.status(200).json({ status: 200, message: '이력서 상세 조회에 성공했습니다.', data: { resume } });
 });
 
+// 이력서 수정 API
+router.patch('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
+    try {
+        // 사용자 ID를 가져옴
+        const { userId } = req.user;
+        // 이력서 ID를 가져옴
+        const { resumeId } = req.params;
+        // 제목, 자기소개를 가져옴 (유효성 검사 진행)
+        const validation = await resumeWriteSchema.validateAsync(req.body);
+        const { title, introduce } = validation;
+
+        // 이력서 ID, 작성자 ID가 모두 일치한 이력서 조회
+        const resume = await prisma.resumes.findFirst({
+            where: { resumeId: +resumeId, UserId: +userId },
+        });
+        if (!resume) {
+            return res.status(401).json({ status: 401, message: '이력서가 존재하지 않습니다.' });
+        }
+
+        // 이력서 수정
+        const updatedResume = await prisma.resumes.update({
+            where: { resumeId: +resumeId, UserId: +userId },
+            data: { title, introduce },
+        });
+
+        return res.status(201).json({ status: 201, message: '이력서 수정이 성공했습니다.', data: { updatedResume } });
+    } catch (err) {
+        next(err);
+    }
+});
+
 export default router;
