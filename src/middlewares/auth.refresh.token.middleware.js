@@ -6,7 +6,6 @@ export default async (req, res, next) => {
     try {
         // 헤더에서 Refresh 토큰 가져옴
         const authorization = req.headers['authorization'];
-        console.log(req.headers);
         if (!authorization) throw new Error('인증 정보가 없습니다.');
 
         // Refresh 토큰이 Bearer 형식인지 확인
@@ -14,7 +13,7 @@ export default async (req, res, next) => {
         if (tokenType !== 'Bearer') throw new Error('지원하지 않는 인증 방식입니다.');
 
         // 서버에서 발급한 JWT가 맞는지 검증
-        const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET_KEY);
+        const decodedToken = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET_KEY);
         const userId = decodedToken.userId;
 
         // JWT에서 꺼낸 userId로 실제 사용자가 있는지 확인

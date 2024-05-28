@@ -6,7 +6,6 @@ export default async (req, res, next) => {
     try {
         // 헤더에서 Access 토큰 가져옴
         const authorization = req.headers['authorization'];
-        console.log(req.headers);
         if (!authorization) throw new Error('인증 정보가 없습니다.');
 
         // Access 토큰이 Bearer 형식인지 확인
