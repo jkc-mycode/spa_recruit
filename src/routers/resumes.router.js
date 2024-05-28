@@ -191,4 +191,35 @@ router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(['RECRUIT
     }
 });
 
+// 이력서 로그 목록 조회 API
+router.get('/resumes/:resumeId/log', authMiddleware, requiredRoles(['RECRUITER']), async (req, res, next) => {
+    // 이력서 ID 가져옴
+    const { resumeId } = req.params;
+
+    // 이력서 로그 조회
+    const resumeLogs = await prisma.resumeHistories.findMany({
+        where: { ResumeId: +resumeId },
+        select: {
+            resumeLogId: true,
+            Resume: {
+                select: {
+                    User: {
+                        select: {
+                            name: true,
+                        },
+                    },
+                },
+            },
+            ResumeId: true,
+            oldState: true,
+            newState: true,
+            reason: true,
+            createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+    });
+
+    return res.status(200).json({ status: 200, message: '이력서 로그 목록 조회에 성공했습니다.', data: { resumeLogs } });
+});
+
 export default router;
