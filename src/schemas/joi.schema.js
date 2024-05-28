@@ -1,5 +1,6 @@
 import Joi from 'joi';
 import { USER_GENDER } from '../constants/user.gender.constant.js';
+import { RESUME_STATE } from '../constants/resume.state.constant.js';
 
 // 회원가입 유효성 검사
 export const signUpSchema = Joi.object({
@@ -83,15 +84,18 @@ export const resumeWriteSchema = Joi.object({
 
 // 이력서 상태 변경 유효성 검사
 export const resumeStateSchema = Joi.object({
-    title: Joi.string().required().messages({
-        'string.base': '제목은 문자열이어야 합니다.',
-        'string.empty': '제목을 입력해주세요.',
-        'any.required': '제목을 입력해주세요.',
-    }),
-    introduce: Joi.string().min(150).required().messages({
-        'string.base': '제목은 문자열이어야 합니다.',
-        'string.min': '자기소개는 150자 이상 작성해야 합니다.',
-        'string.empty': '제목을 입력해주세요.',
-        'any.required': '제목을 입력해주세요.',
+    state: Joi.string()
+        .valid(...Object.values(RESUME_STATE))
+        .required()
+        .messages({
+            'string.base': '지원 상태는 문자열이어야 합니다.',
+            'string.empty': '지원 상태를 입력해주세요.',
+            'any.required': '지원 상태를 입력해주세요.',
+            'any.only': '지원 상태는 [APPLY, DROP, PASS, INTERVIEW1, INTERVIEW2, FINAL_PASS] 중 하나여야 합니다.',
+        }),
+    reason: Joi.string().required().messages({
+        'string.base': '변경 사유는 문자열이어야 합니다.',
+        'string.empty': '변경 사유를 입력해주세요.',
+        'any.required': '변경 사유를 입력해주세요.',
     }),
 });

@@ -3,6 +3,7 @@ import { prisma } from '../utils/prisma.util.js';
 import authMiddleware from '../middlewares/auth.access.token.middleware.js';
 import { requiredRoles } from '../middlewares/role.middleware.js';
 
+import { USER_ROLE } from '../constants/user.role.constant.js';
 import { resumeWriteSchema, resumeStateSchema } from '../schemas/joi.schema.js';
 import { Prisma } from '@prisma/client';
 
@@ -44,7 +45,7 @@ router.get('/resumes', authMiddleware, async (req, res) => {
     const resumes = await prisma.resumes.findMany({
         where: {
             // AND 배열 연산을 통해서 필터링
-            AND: [user.role === 'RECRUITER' ? {} : { UserId: +user.userId }, stateFilter === '' ? {} : { state: stateFilter }],
+            AND: [Object.values(USER_ROLE).includes(user.role) ? {} : { UserId: +user.userId }, stateFilter === '' ? {} : { state: stateFilter }],
         },
         select: {
             resumeId: true,
@@ -70,7 +71,7 @@ router.get('/resumes/:resumeId', authMiddleware, async (req, res) => {
 
     // 이력서 ID, 작성자 ID가 모두 일치한 이력서 조회
     const resume = await prisma.resumes.findFirst({
-        where: user.role === 'RECRUITER' ? { resumeId: +resumeId } : { resumeId: +resumeId, UserId: +user.userId },
+        where: Object.values(USER_ROLE).includes(user.role) ? { resumeId: +resumeId } : { resumeId: +resumeId, UserId: +user.userId },
         select: {
             resumeId: true,
             User: { select: { name: true } },
@@ -146,7 +147,7 @@ router.delete('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
 });
 
 // 이력서 지원 상태 변경 API
-router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(['RECRUITER']), async (req, res, next) => {
+router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(Object.values(USER_ROLE)), async (req, res, next) => {
     try {
         // 사용자 정보 가져옴
         const { userId } = req.user;
@@ -193,7 +194,7 @@ router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(['RECRUIT
 });
 
 // 이력서 로그 목록 조회 API
-router.get('/resumes/:resumeId/log', authMiddleware, requiredRoles(['RECRUITER']), async (req, res, next) => {
+router.get('/resumes/:resumeId/log', authMiddleware, requiredRoles(Object.values(USER_ROLE)), async (req, res, next) => {
     // 이력서 ID 가져옴
     const { resumeId } = req.params;
 
