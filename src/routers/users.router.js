@@ -67,10 +67,36 @@ router.post('/auth/sign-in', async (req, res, next) => {
         }
 
         // 로그인 성공하면 JWT 토큰 발급
-        const AccessToken = jwt.sign({ userId: user.userId }, process.env.CUSTOMIZED_SECRET_KEY, { expiresIn: '12h' });
+        const AccessToken = jwt.sign({ userId: user.userId }, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: '12h' });
+        const RefreshToken = jwt.sign({ userId: user.userId }, process.env.REFRESH_TOKEN_SECRET_KEY, { expiresIn: '7d' });
         // res.setHeader('authorization', `Bearer ${AccessToken}`);
 
-        return res.status(200).json({ status: 200, message: '로그인에 성공했습니다.', data: { AccessToken } });
+        // 현재 사용자의 Refresh토큰이 DB에 있는지 조회
+        const refreshToken = await prisma.refreshTokens.findFirst({ where: { UserId: user.userId } });
+        if (!refreshToken) {
+            // 없으면 새로운 토큰 생성
+            await prisma.refreshTokens.create({
+                data: {
+                    UserId: user.userId,
+                    token: RefreshToken,
+                    ip: req.ip,
+                    userAgent: req.headers['user-agent'],
+                },
+            });
+        } else {
+            // 있으면 토큰 갱신
+            await prisma.refreshTokens.update({
+                where: { UserId: user.userId },
+                data: {
+                    token: RefreshToken,
+                    ip: req.ip,
+                    userAgent: req.headers['user-agent'],
+                    createdAt: new Date(Date.now()),
+                },
+            });
+        }
+
+        return res.status(200).json({ status: 200, message: '로그인에 성공했습니다.', data: { AccessToken, RefreshToken } });
     } catch (err) {
         next(err);
     }

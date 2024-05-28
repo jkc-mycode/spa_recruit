@@ -25,7 +25,8 @@ model Users {
   createdAt    DateTime @default(now()) @map("createdAt")
   updatedAt    DateTime @updatedAt @map("updatedAt")
 
-  Resume Resumes[] // 1명의 사용자는 여러 개의 이력서 작성 가능 (1:N 관계 형성)
+  Resume       Resumes[] // 1명의 사용자는 여러 개의 이력서 작성 가능 (1:N 관계 형성)
+  RefreshToken RefreshTokens?
 
   @@map("Users")
 }
@@ -60,4 +61,17 @@ model ResumeHistories {
   Resume Resumes @relation(fields: [ResumeId], references: [resumeId], onDelete: Cascade)
 
   @@map("ResumeHistories")
+}
+
+model RefreshTokens {
+  tokenId   Int      @id @default(autoincrement()) @map("tokenId")
+  UserId    Int      @unique @map("UserId")
+  token     String   @map("token")
+  ip        String   @map("ip")
+  userAgent String   @map("userAgent")
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  User Users @relation(fields: [UserId], references: [userId], onDelete: Cascade)
+
+  @@map("RefreshTokens")
 }

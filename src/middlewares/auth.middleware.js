@@ -14,7 +14,7 @@ export default async (req, res, next) => {
         if (tokenType !== 'Bearer') throw new Error('지원하지 않는 인증 방식입니다.');
 
         // 서버에서 발급한 JWT가 맞는지 검증
-        const decodedToken = jwt.verify(token, process.env.CUSTOMIZED_SECRET_KEY);
+        const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET_KEY);
         const userId = decodedToken.userId;
 
         // JWT에서 꺼낸 userId로 실제 사용자가 있는지 확인
