@@ -32,4 +32,22 @@ router.post('/auth/refresh', authRefreshTokenMiddleware, async (req, res, next) 
     }
 });
 
+// 로그아웃 API
+router.post('/auth/sign-out', authRefreshTokenMiddleware, async (req, res, next) => {
+    try {
+        // 사용자 정보 가져옴
+        const user = req.user;
+
+        // DB에서 Refresh Token 삭제
+        const deletedUserId = await prisma.refreshTokens.delete({
+            where: { UserId: user.userId },
+            select: { UserId: true },
+        });
+
+        return res.status(201).json({ status: 201, message: '로그아웃 되었습니다.', data: { deletedUserId } });
+    } catch (err) {
+        next(err);
+    }
+});
+
 export default router;
