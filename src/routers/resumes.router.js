@@ -3,7 +3,7 @@ import { prisma } from '../utils/prisma.util.js';
 import authMiddleware from '../middlewares/auth.middleware.js';
 import { requiredRoles } from '../middlewares/role.middleware.js';
 
-import { resumeWriteSchema } from '../schemas/joi.schema.js';
+import { resumeWriteSchema, resumeStateSchema } from '../schemas/joi.schema.js';
 import { Prisma } from '@prisma/client';
 
 const router = express.Router();
@@ -153,7 +153,8 @@ router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(['RECRUIT
         // 이력서 ID 가져옴
         const { resumeId } = req.params;
         //지원 상태, 사유 가져옴
-        const { state, reason } = req.body;
+        const validation = await resumeStateSchema.validateAsync(req.body);
+        const { state, reason } = validation;
 
         // 이력서가 존재하는지 조회
         const resume = await prisma.resumes.findFirst({ where: { resumeId: +resumeId } });
