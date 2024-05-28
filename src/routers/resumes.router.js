@@ -1,8 +1,10 @@
 import express from 'express';
 import { prisma } from '../utils/prisma.util.js';
 import authMiddleware from '../middlewares/auth.middleware.js';
+import { requiredRoles } from '../middlewares/role.middleware.js';
 
 import { resumeWriteSchema } from '../schemas/joi.schema.js';
+import { Prisma } from '@prisma/client';
 
 const router = express.Router();
 
@@ -138,6 +140,52 @@ router.delete('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
         });
 
         return res.status(201).json({ status: 201, message: '이력서 삭제가 성공했습니다.', data: { deletedResume } });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// 이력서 지원 상태 변경 API
+router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(['RECRUITER']), async (req, res, next) => {
+    try {
+        // 사용자 정보 가져옴
+        const { userId } = req.user;
+        // 이력서 ID 가져옴
+        const { resumeId } = req.params;
+        //지원 상태, 사유 가져옴
+        const { state, reason } = req.body;
+
+        // 이력서가 존재하는지 조회
+        const resume = await prisma.resumes.findFirst({ where: { resumeId: +resumeId } });
+        if (!resume) {
+            return res.status(401).json({ status: 401, message: '이력서가 존재하지 않습니다.' });
+        }
+
+        let resumeLog; // 이력서 변경 로그
+
+        // 트랜젝션을 통해서 작업의 일관성 유지
+        await prisma.$transaction(
+            async (tx) => {
+                // 이력서 수정
+                const updatedResume = await tx.resumes.update({ where: { resumeId: +resumeId }, data: { state } });
+
+                // 이력서 변경 로그 생성
+                resumeLog = await tx.resumeHistories.create({
+                    data: {
+                        RecruiterId: +userId,
+                        ResumeId: +resumeId,
+                        oldState: resume.state,
+                        newState: updatedResume.state,
+                        reason,
+                    },
+                });
+            },
+            {
+                isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+            },
+        );
+
+        return res.status(201).json({ status: 201, message: '지원 상태 변경에 성공했습니다.', data: { resumeLog } });
     } catch (err) {
         next(err);
     }
