@@ -1,6 +1,6 @@
 import express from 'express';
 import { prisma } from '../utils/prisma.util.js';
-import authMiddleware from '../middlewares/auth.middleware.js';
+import authMiddleware from '../middlewares/auth.accessToken.middleware.js';
 import { requiredRoles } from '../middlewares/role.middleware.js';
 
 import { resumeWriteSchema, resumeStateSchema } from '../schemas/joi.schema.js';
