@@ -8,7 +8,7 @@ export const requiredRoles = (roles) => {
         // 배열로 받아온 roles에 현재 사용자의 역할이 포함되는지 확인
         if (roles.includes(role)) {
             // 역할이 포함되면 다음으로 진행
-            next();
+            return next();
         }
         return res.status(401).json({ status: 401, message: '접근 권한이 없습니다.' });
     };
