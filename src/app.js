@@ -16,6 +16,10 @@ const SERVER_PORT = process.env.SERVER_PORT;
 app.use(express.json());
 app.use(cookieParser());
 
+app.get('/', (req, res) => {
+    return res.status(200).json({ message: '테스트' });
+});
+
 app.use('/api', [UserRouter, ResumeRouter, AuthRouter]);
 app.use(errorHandingMiddleware);
 
