@@ -127,10 +127,10 @@ router.post('/refresh', authRefreshTokenMiddleware, async (req, res, next) => {
         const user = req.user;
 
         // Access Token 재발급 (12시간)
-        const AccessToken = jwt.sign({ userId: user.userId }, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: '12h' });
+        const AccessToken = jwt.sign({ userId: user.userId }, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: ACCESS_TOKEN_EXPIRED_IN });
 
         // Refresh Token 재발급 (7일)
-        const RefreshToken = jwt.sign({ userId: user.userId }, process.env.REFRESH_TOKEN_SECRET_KEY, { expiresIn: '7d' });
+        const RefreshToken = jwt.sign({ userId: user.userId }, process.env.REFRESH_TOKEN_SECRET_KEY, { expiresIn: REFRESH_TOKEN_EXPIRED_IN });
         await prisma.refreshToken.update({
             where: { UserId: user.userId },
             data: {
