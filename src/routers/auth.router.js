@@ -12,7 +12,7 @@ import { ACCESS_TOKEN_EXPIRED_IN, HASH_SALT, REFRESH_TOKEN_EXPIRED_IN } from '..
 const router = express.Router();
 
 // 회원가입 API
-router.post('/auth/sign-up', async (req, res, next) => {
+router.post('/sign-up', async (req, res, next) => {
     try {
         // 사용자 입력 유효성 검사
         const validation = await signUpSchema.validateAsync(req.body);
@@ -55,7 +55,7 @@ router.post('/auth/sign-up', async (req, res, next) => {
 });
 
 // 로그인 API
-router.post('/auth/sign-in', async (req, res, next) => {
+router.post('/sign-in', async (req, res, next) => {
     try {
         const validation = await signInSchema.validateAsync(req.body);
         const { email, password } = validation;
@@ -105,7 +105,7 @@ router.post('/auth/sign-in', async (req, res, next) => {
 });
 
 // 토큰 재발급 API
-router.post('/auth/refresh', authRefreshTokenMiddleware, async (req, res, next) => {
+router.post('/refresh', authRefreshTokenMiddleware, async (req, res, next) => {
     try {
         // 사용자 정보 가져옴
         const user = req.user;

@@ -12,7 +12,7 @@ import { MESSAGES } from '../constants/message.constant.js';
 const router = express.Router();
 
 //이력서 생성 API
-router.post('/resumes', authMiddleware, async (req, res, next) => {
+router.post('/', async (req, res, next) => {
     try {
         // 사용자 ID를 가져옴
         const { userId } = req.user;
@@ -36,63 +36,93 @@ router.post('/resumes', authMiddleware, async (req, res, next) => {
 });
 
 // 이력서 목록 조회 API
-router.get('/resumes', authMiddleware, async (req, res) => {
+router.get('/', async (req, res) => {
     // 사용자를 가져옴
     const user = req.user;
     // 정렬 조건을 req.query로 가져옴
-    const sortType = req.query.sort.toLowerCase();
-    // 필터링 조건을 가져옴
-    const stateFilter = req.query.status.toUpperCase();
+    let sortType = req.query.sort.toLowerCase();
 
-    const resumes = await prisma.resume.findMany({
-        where: {
-            // AND 배열 연산을 통해서 필터링
-            AND: [Object.values(USER_ROLE).includes(user.role) ? {} : { UserId: +user.userId }, stateFilter === '' ? {} : { state: stateFilter }],
-        },
-        select: {
-            resumeId: true,
-            User: { select: { name: true } },
-            title: true,
-            introduce: true,
-            state: true,
-            createdAt: true,
-            updatedAt: true,
+    if (sortType !== 'desc' || sortType !== 'asc') {
+        sortType = 'desc';
+    }
+
+    const whereCondition = {};
+    // 채용 담당자인 경우
+    if (user.role === USER_ROLE.RECRUITER) {
+        // 필터링 조건을 가져옴
+        const stateFilter = req.query.status.toUpperCase();
+
+        if (stateFilter) {
+            whereCondition.state = stateFilter;
+        }
+    }
+    // 채용 담당자가 아닌 경우
+    else {
+        whereCondition.UserId = user.userId;
+    }
+
+    let resumes = await prisma.resume.findMany({
+        where: whereCondition,
+        include: {
+            User: true,
         },
         orderBy: { createdAt: sortType },
+    });
+
+    resumes = resumes.map((resume) => {
+        return {
+            resumeId: resume.resumeId,
+            userName: resume.User.name,
+            title: resume.title,
+            introduce: resume.introduce,
+            state: resume.state,
+            createdAt: resume.createdAt,
+            updatedAt: resume.updatedAt,
+        };
     });
 
     return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.RESUMES.READ.LIST.SUCCEED, data: { resumes } });
 });
 
 // 이력서 상세 조회 API
-router.get('/resumes/:resumeId', authMiddleware, async (req, res) => {
+router.get('/:resumeId', async (req, res) => {
     // 사용자를 가져옴
     const user = req.user;
     // 이력서 ID를 가져옴
     const { resumeId } = req.params;
 
+    const whereCondition = { resumeId: +resumeId };
+    // 채용 담당자가 아닌 경우
+    if (user.role !== USER_ROLE.RECRUITER) {
+        whereCondition.UserId = user.userId;
+    }
+
     // 이력서 ID, 작성자 ID가 모두 일치한 이력서 조회
-    const resume = await prisma.resume.findFirst({
-        where: Object.values(USER_ROLE).includes(user.role) ? { resumeId: +resumeId } : { resumeId: +resumeId, UserId: +user.userId },
-        select: {
-            resumeId: true,
-            User: { select: { name: true } },
-            title: true,
-            introduce: true,
-            state: true,
-            createdAt: true,
-            updatedAt: true,
+    let resume = await prisma.resume.findFirst({
+        where: whereCondition,
+        include: {
+            User: true,
         },
     });
     if (!resume) {
         return res.status(HTTP_STATUS.NOT_FOUND).json({ status: HTTP_STATUS.NOT_FOUND, message: MESSAGES.RESUMES.COMMON.NOT_FOUND });
     }
 
+    resume = {
+        resumeId: resume.resumeId,
+        userName: resume.User.name,
+        title: resume.title,
+        introduce: resume.introduce,
+        state: resume.state,
+        createdAt: resume.createdAt,
+        updatedAt: resume.updatedAt,
+    };
+
     return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.RESUMES.READ.DETAIL.SUCCEED, data: { resume } });
 });
 
 // 이력서 수정 API
-router.patch('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
+router.patch('/:resumeId', async (req, res, next) => {
     try {
         // 사용자 ID를 가져옴
         const { userId } = req.user;
@@ -113,7 +143,10 @@ router.patch('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
         // 이력서 수정
         const updatedResume = await prisma.resume.update({
             where: { resumeId: +resumeId, UserId: +userId },
-            data: { title, introduce },
+            data: {
+                ...(title && { title }),
+                ...(introduce && { introduce }),
+            },
         });
 
         return res
@@ -125,7 +158,7 @@ router.patch('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
 });
 
 // 이력서 삭제 API
-router.delete('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
+router.delete('/:resumeId', async (req, res, next) => {
     try {
         // 사용자 ID를 가져옴
         const { userId } = req.user;
@@ -139,6 +172,8 @@ router.delete('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
         if (!resume) {
             return res.status(HTTP_STATUS.NOT_FOUND).json({ status: HTTP_STATUS.NOT_FOUND, message: MESSAGES.RESUMES.COMMON.NOT_FOUND });
         }
+
+        // 이력서 삭제
         const deletedResume = await prisma.resume.delete({
             where: { resumeId: +resumeId, UserId: +userId },
             select: { resumeId: true },
@@ -153,7 +188,7 @@ router.delete('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
 });
 
 // 이력서 지원 상태 변경 API
-router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(Object.values(USER_ROLE)), async (req, res, next) => {
+router.patch('/:resumeId/state', requiredRoles(Object.values(USER_ROLE)), async (req, res, next) => {
     try {
         // 사용자 정보 가져옴
         const { userId } = req.user;
@@ -200,7 +235,7 @@ router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(Object.va
 });
 
 // 이력서 로그 목록 조회 API
-router.get('/resumes/:resumeId/log', authMiddleware, requiredRoles(Object.values(USER_ROLE)), async (req, res, next) => {
+router.get('/:resumeId/log', requiredRoles(Object.values(USER_ROLE)), async (req, res, next) => {
     // 이력서 ID 가져옴
     const { resumeId } = req.params;
 
