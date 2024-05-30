@@ -73,7 +73,23 @@ router.post('/sign-in', async (req, res, next) => {
         const RefreshToken = jwt.sign({ userId: user.userId }, process.env.REFRESH_TOKEN_SECRET_KEY, { expiresIn: REFRESH_TOKEN_EXPIRED_IN });
         // res.setHeader('authorization', `Bearer ${AccessToken}`);
 
+        // prisma upsert를 통해서 기존 토큰이 있으면 업데이트 없으면 생성
+        await prisma.refreshToken.upsert({
+            where: { UserId: user.userId },
+            update: {
+                token: RefreshToken,
+                createdAt: new Date(Date.now()),
+            },
+            create: {
+                UserId: user.userId,
+                token: RefreshToken,
+                ip: req.ip,
+                userAgent: req.headers['user-agent'],
+            },
+        });
+
         // 현재 사용자의 Refresh토큰이 DB에 있는지 조회
+        /* 
         const refreshToken = await prisma.refreshToken.findFirst({ where: { UserId: user.userId } });
         if (!refreshToken) {
             // 없으면 새로운 토큰 생성
@@ -96,7 +112,7 @@ router.post('/sign-in', async (req, res, next) => {
                     createdAt: new Date(Date.now()),
                 },
             });
-        }
+        }*/
 
         return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.AUTH.SIGN_IN, data: { AccessToken, RefreshToken } });
     } catch (err) {

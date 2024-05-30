@@ -19,7 +19,7 @@ export default async (req, res, next) => {
         const userId = decodedToken.userId;
 
         // JWT에서 꺼낸 userId로 실제 사용자가 있는지 확인
-        const user = await prisma.user.findFirst({ where: { userId: +userId } });
+        const user = await prisma.user.findFirst({ where: { userId: +userId }, omit: { password: true } });
         if (!user) {
             return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.JWT.NO_USER });
         }
