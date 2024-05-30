@@ -7,6 +7,7 @@ import authRefreshTokenMiddleware from '../middlewares/auth.refresh.token.middle
 import { signUpSchema, signInSchema } from '../schemas/joi.schema.js';
 import { HTTP_STATUS } from '../constants/http-status.constant.js';
 import { MESSAGES } from '../constants/message.constant.js';
+import { ACCESS_TOKEN_EXPIRED_IN, HASH_SALT, REFRESH_TOKEN_EXPIRED_IN } from '../constants/auth.constant.js';
 
 const router = express.Router();
 
@@ -31,7 +32,7 @@ router.post('/auth/sign-up', async (req, res, next) => {
         }
 
         // 비밀번호 암호화
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(password, HASH_SALT);
 
         // 사용자 생성
         const user = await prisma.user.create({
@@ -45,7 +46,7 @@ router.post('/auth/sign-up', async (req, res, next) => {
             },
         });
 
-        const { password: pw, ...userData } = user;
+        const { password: pw, ...userData } = user; // == user.password = undefined;
 
         return res.status(HTTP_STATUS.CREATED).json({ status: HTTP_STATUS.CREATED, message: MESSAGES.AUTH.SIGN_UP.SUCCEED, data: { userData } });
     } catch (err) {
@@ -61,18 +62,15 @@ router.post('/auth/sign-in', async (req, res, next) => {
 
         // 입력받은 이메일로 사용자 조회
         const user = await prisma.user.findFirst({ where: { email } });
-        if (!user) {
-            return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.UNAUTHORIZED });
-        }
 
         // 사용자 비밀번호와 입력한 비밀번호 일치 확인
-        if (!(await bcrypt.compare(password, user.password))) {
+        if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.UNAUTHORIZED });
         }
 
         // 로그인 성공하면 JWT 토큰 발급
-        const AccessToken = jwt.sign({ userId: user.userId }, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: '12h' });
-        const RefreshToken = jwt.sign({ userId: user.userId }, process.env.REFRESH_TOKEN_SECRET_KEY, { expiresIn: '7d' });
+        const AccessToken = jwt.sign({ userId: user.userId }, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: ACCESS_TOKEN_EXPIRED_IN });
+        const RefreshToken = jwt.sign({ userId: user.userId }, process.env.REFRESH_TOKEN_SECRET_KEY, { expiresIn: REFRESH_TOKEN_EXPIRED_IN });
         // res.setHeader('authorization', `Bearer ${AccessToken}`);
 
         // 현재 사용자의 Refresh토큰이 DB에 있는지 조회
