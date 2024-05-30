@@ -1,6 +1,7 @@
 import Joi from 'joi';
 import { USER_GENDER } from '../constants/user.gender.constant.js';
 import { RESUME_STATE } from '../constants/resume.state.constant.js';
+import { MESSAGES } from '../constants/message.constant.js';
 
 // 회원가입 유효성 검사
 export const signUpSchema = Joi.object({
@@ -8,43 +9,43 @@ export const signUpSchema = Joi.object({
         .email({ minDomainSegments: 2, tlds: { allow: ['com', 'net', 'kr'] } })
         .required()
         .messages({
-            'string.base': '이메일은 문자열이어야 합니다.',
-            'string.empty': '이메일을 입력해주세요.',
-            'string.email': '이메일의 형식이 올바르지 않습니다',
-            'any.required': '이메일을 입력해주세요.',
+            'string.base': MESSAGES.AUTH.COMMON.EMAIL.BASE,
+            'string.empty': MESSAGES.AUTH.COMMON.EMAIL.REQUIRED,
+            'string.email': MESSAGES.AUTH.COMMON.EMAIL.EMAIL,
+            'any.required': MESSAGES.AUTH.COMMON.EMAIL.REQUIRED,
         }),
     password: Joi.string().required().pattern(new RegExp('^(?=.*[a-zA-Z])(?=.*[!@#$%^*+=-])(?=.*[0-9]).{6,15}$')).messages({
-        'string.base': '비밀번호는 문자열이어야 합니다.',
-        'string.empty': '비밀번호를 입력해주세요.',
-        'any.required': '비밀번호를 입력해주세요.',
-        'string.pattern.base': '비밀번호가 형식에 맞지 않습니다. (영문, 숫자, 특수문자 포함 6~15자)',
+        'string.base': MESSAGES.AUTH.COMMON.PASSWORD.BASE,
+        'string.empty': MESSAGES.AUTH.COMMON.PASSWORD.REQUIRED,
+        'any.required': MESSAGES.AUTH.COMMON.PASSWORD.REQUIRED,
+        'string.pattern.base': MESSAGES.AUTH.COMMON.PASSWORD.PATTERN,
     }),
     passwordConfirm: Joi.string().required().pattern(new RegExp('^(?=.*[a-zA-Z])(?=.*[!@#$%^*+=-])(?=.*[0-9]).{6,15}$')).messages({
-        'string.base': '비밀번호 확인은 문자열이어야 합니다.',
-        'string.empty': '비밀번호 확인을 입력해주세요.',
-        'any.required': '비밀번호 확인을 입력해주세요.',
-        'string.pattern.base': '비밀번호 확인의 형식이 맞지 않습니다. (영문, 숫자, 특수문자 포함 6~15자)',
+        'string.base': MESSAGES.AUTH.COMMON.PASSWORD_CONFIRM.BASE,
+        'string.empty': MESSAGES.AUTH.COMMON.PASSWORD_CONFIRM.REQUIRED,
+        'any.required': MESSAGES.AUTH.COMMON.PASSWORD_CONFIRM.REQUIRED,
+        'string.pattern.base': MESSAGES.AUTH.COMMON.PASSWORD_CONFIRM.PATTERN,
     }),
     name: Joi.string().required().messages({
-        'string.base': '이름은 문자열이어야 합니다.',
-        'string.empty': '이름을 입력해주세요.',
-        'any.required': '이름을 입력해주세요.',
+        'string.base': MESSAGES.AUTH.COMMON.NAME.BASE,
+        'string.empty': MESSAGES.AUTH.COMMON.NAME.REQUIRED,
+        'any.required': MESSAGES.AUTH.COMMON.NAME.REQUIRED,
     }),
     age: Joi.number().integer().required().messages({
-        'number.base': '나이는 정수를 입력해주세요.',
-        'any.required': '나이를 입력해주세요.',
+        'number.base': MESSAGES.AUTH.COMMON.AGE.BASE,
+        'any.required': MESSAGES.AUTH.COMMON.AGE.REQUIRED,
     }),
     gender: Joi.string()
         .valid(...Object.values(USER_GENDER))
         .required()
         .messages({
-            'string.base': '성별은 문자열이어야 합니다.',
-            'any.only': '성별은 [MALE, FEMALE] 중 하나여야 합니다.',
+            'string.base': MESSAGES.AUTH.COMMON.GENDER.BASE,
+            'any.only': MESSAGES.AUTH.COMMON.GENDER.ONLY,
         }),
     profileImage: Joi.string().required().messages({
-        'string.base': '프로필 사진은 문자열이어야 합니다.',
-        'string.empty': '프로필 사진을 입력해주세요.',
-        'any.required': '프로필 사진을 입력해주세요.',
+        'string.base': MESSAGES.AUTH.COMMON.PROFILE_IMAGE.BASE,
+        'string.empty': MESSAGES.AUTH.COMMON.PROFILE_IMAGE.REQUIRED,
+        'any.required': MESSAGES.AUTH.COMMON.PROFILE_IMAGE.REQUIRED,
     }),
 });
 
@@ -54,31 +55,31 @@ export const signInSchema = Joi.object({
         .email({ minDomainSegments: 2, tlds: { allow: ['com', 'net', 'kr'] } })
         .required()
         .messages({
-            'string.base': '이메일은 문자열이어야 합니다.',
-            'string.empty': '이메일을 입력해주세요.',
-            'string.email': '이메일의 형식이 올바르지 않습니다',
-            'any.required': '이메일을 입력해주세요.',
+            'string.base': MESSAGES.AUTH.COMMON.EMAIL.BASE,
+            'string.empty': MESSAGES.AUTH.COMMON.EMAIL.REQUIRED,
+            'string.email': MESSAGES.AUTH.COMMON.EMAIL.EMAIL,
+            'any.required': MESSAGES.AUTH.COMMON.EMAIL.REQUIRED,
         }),
     password: Joi.string().required().pattern(new RegExp('^(?=.*[a-zA-Z])(?=.*[!@#$%^*+=-])(?=.*[0-9]).{6,15}$')).messages({
-        'string.base': '비밀번호는 문자열이어야 합니다.',
-        'string.empty': '비밀번호를 입력해주세요.',
-        'any.required': '비밀번호를 입력해주세요.',
-        'string.pattern.base': '비밀번호가 형식에 맞지 않습니다. (영문, 숫자, 특수문자 포함 6~15자)',
+        'string.base': MESSAGES.AUTH.COMMON.PASSWORD.BASE,
+        'string.empty': MESSAGES.AUTH.COMMON.PASSWORD.REQUIRED,
+        'any.required': MESSAGES.AUTH.COMMON.PASSWORD.REQUIRED,
+        'string.pattern.base': MESSAGES.AUTH.COMMON.PASSWORD.PATTERN,
     }),
 });
 
 // 이력서 작성 유효성 검사
 export const resumeWriteSchema = Joi.object({
     title: Joi.string().required().messages({
-        'string.base': '제목은 문자열이어야 합니다.',
-        'string.empty': '제목을 입력해주세요.',
-        'any.required': '제목을 입력해주세요.',
+        'string.base': MESSAGES.RESUMES.COMMON.TITLE,
+        'string.empty': MESSAGES.RESUMES.COMMON.TITLE.REQUIRED,
+        'any.required': MESSAGES.RESUMES.COMMON.TITLE.REQUIRED,
     }),
     introduce: Joi.string().min(150).required().messages({
-        'string.base': '제목은 문자열이어야 합니다.',
-        'string.min': '자기소개는 150자 이상 작성해야 합니다.',
-        'string.empty': '제목을 입력해주세요.',
-        'any.required': '제목을 입력해주세요.',
+        'string.base': MESSAGES.RESUMES.COMMON.INTRODUCE.BASE,
+        'string.min': MESSAGES.RESUMES.COMMON.INTRODUCE.MIN,
+        'string.empty': MESSAGES.RESUMES.COMMON.INTRODUCE.REQUIRED,
+        'any.required': MESSAGES.RESUMES.COMMON.INTRODUCE.REQUIRED,
     }),
 });
 
@@ -88,14 +89,14 @@ export const resumeStateSchema = Joi.object({
         .valid(...Object.values(RESUME_STATE))
         .required()
         .messages({
-            'string.base': '지원 상태는 문자열이어야 합니다.',
-            'string.empty': '지원 상태를 입력해주세요.',
-            'any.required': '지원 상태를 입력해주세요.',
-            'any.only': '지원 상태는 [APPLY, DROP, PASS, INTERVIEW1, INTERVIEW2, FINAL_PASS] 중 하나여야 합니다.',
+            'string.base': MESSAGES.RESUMES.COMMON.STATE.BASE,
+            'string.empty': MESSAGES.RESUMES.COMMON.STATE.REQUIRED,
+            'any.required': MESSAGES.RESUMES.COMMON.STATE.REQUIRED,
+            'any.only': MESSAGES.RESUMES.COMMON.STATE.ONLY,
         }),
     reason: Joi.string().required().messages({
-        'string.base': '변경 사유는 문자열이어야 합니다.',
-        'string.empty': '변경 사유를 입력해주세요.',
-        'any.required': '변경 사유를 입력해주세요.',
+        'string.base': MESSAGES.RESUMES.COMMON.REASON.BASE,
+        'string.empty': MESSAGES.RESUMES.COMMON.REASON.REQUIRED,
+        'any.required': MESSAGES.RESUMES.COMMON.REASON.REQUIRED,
     }),
 });

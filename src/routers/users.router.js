@@ -1,6 +1,8 @@
 import express from 'express';
 import { prisma } from '../utils/prisma.util.js';
 import authMiddleware from '../middlewares/auth.access.token.middleware.js';
+import { HTTP_STATUS } from '../constants/http-status.constant.js';
+import { MESSAGES } from '../constants/message.constant.js';
 
 const router = express.Router();
 
@@ -20,7 +22,7 @@ router.get('/users', authMiddleware, async (req, res) => {
         },
     });
 
-    return res.status(200).json({ message: '내 정보 조회에 성공했습니다.', data: { user } });
+    return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.USERS.READ.SUCCEED, data: { user } });
 });
 
 export default router;

@@ -5,6 +5,8 @@ import bcrypt from 'bcrypt';
 import authRefreshTokenMiddleware from '../middlewares/auth.refresh.token.middleware.js';
 
 import { signUpSchema, signInSchema } from '../schemas/joi.schema.js';
+import { HTTP_STATUS } from '../constants/http-status.constant.js';
+import { MESSAGES } from '../constants/message.constant.js';
 
 const router = express.Router();
 
@@ -18,12 +20,14 @@ router.post('/auth/sign-up', async (req, res, next) => {
         // 이메일 중복 확인
         const isExistUser = await prisma.users.findFirst({ where: { email } });
         if (isExistUser) {
-            return res.status(400).json({ status: 400, message: '이미 가입 된 사용자입니다.' });
+            return res.status(HTTP_STATUS.CONFLICT).json({ status: HTTP_STATUS.CONFLICT, message: MESSAGES.AUTH.COMMON.EMAIL.DUPLICATED });
         }
 
         // 비밀번호 확인 결과
         if (password !== passwordConfirm) {
-            return res.status(400).json({ status: 400, message: '입력 한 두 비밀번호가 일치하지 않습니다.' });
+            return res
+                .status(HTTP_STATUS.BAD_REQUEST)
+                .json({ status: HTTP_STATUS.BAD_REQUEST, message: MESSAGES.AUTH.COMMON.PASSWORD_CONFIRM.INCONSISTENT });
         }
 
         // 비밀번호 암호화
@@ -43,7 +47,7 @@ router.post('/auth/sign-up', async (req, res, next) => {
 
         const { password: pw, ...userData } = user;
 
-        return res.status(201).json({ status: 201, message: '회원가입에 성공했습니다.', data: { userData } });
+        return res.status(HTTP_STATUS.CREATED).json({ status: HTTP_STATUS.CREATED, message: MESSAGES.AUTH.SIGN_UP.SUCCEED, data: { userData } });
     } catch (err) {
         next(err);
     }
@@ -58,12 +62,12 @@ router.post('/auth/sign-in', async (req, res, next) => {
         // 입력받은 이메일로 사용자 조회
         const user = await prisma.users.findFirst({ where: { email } });
         if (!user) {
-            return res.status(401).json({ status: 401, message: '인증 정보가 유효하지 않습니다.' });
+            return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.UNAUTHORIZED });
         }
 
         // 사용자 비밀번호와 입력한 비밀번호 일치 확인
         if (!(await bcrypt.compare(password, user.password))) {
-            return res.status(401).json({ status: 401, message: '인증 정보가 유효하지 않습니다.' });
+            return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.UNAUTHORIZED });
         }
 
         // 로그인 성공하면 JWT 토큰 발급
@@ -96,7 +100,7 @@ router.post('/auth/sign-in', async (req, res, next) => {
             });
         }
 
-        return res.status(200).json({ status: 200, message: '로그인에 성공했습니다.', data: { AccessToken, RefreshToken } });
+        return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.AUTH.SIGN_IN, data: { AccessToken, RefreshToken } });
     } catch (err) {
         next(err);
     }
@@ -123,7 +127,9 @@ router.post('/auth/refresh', authRefreshTokenMiddleware, async (req, res, next) 
             },
         });
 
-        return res.status(201).json({ status: 201, message: '토큰 재발급에 성공했습니다.', data: { AccessToken, RefreshToken } });
+        return res
+            .status(HTTP_STATUS.CREATED)
+            .json({ status: HTTP_STATUS.CREATED, message: MESSAGES.AUTH.TOKEN_REFRESH.SUCCEED, data: { AccessToken, RefreshToken } });
     } catch (err) {
         next(err);
     }
@@ -141,7 +147,7 @@ router.post('/auth/sign-out', authRefreshTokenMiddleware, async (req, res, next)
             select: { UserId: true },
         });
 
-        return res.status(201).json({ status: 201, message: '로그아웃 되었습니다.', data: { deletedUserId } });
+        return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.AUTH.SIGN_OUT.SUCCEED, data: { deletedUserId } });
     } catch (err) {
         next(err);
     }

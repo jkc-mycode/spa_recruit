@@ -6,6 +6,8 @@ import { requiredRoles } from '../middlewares/role.middleware.js';
 import { USER_ROLE } from '../constants/user.role.constant.js';
 import { resumeWriteSchema, resumeStateSchema } from '../schemas/joi.schema.js';
 import { Prisma } from '@prisma/client';
+import { HTTP_STATUS } from '../constants/http-status.constant.js';
+import { MESSAGES } from '../constants/message.constant.js';
 
 const router = express.Router();
 
@@ -27,7 +29,7 @@ router.post('/resumes', authMiddleware, async (req, res, next) => {
             },
         });
 
-        return res.status(201).json({ status: 201, message: '이력서 생성에 성공했습니다.', data: { resume } });
+        return res.status(HTTP_STATUS.CREATED).json({ status: HTTP_STATUS.CREATED, message: MESSAGES.RESUMES.CREATE.SUCCEED, data: { resume } });
     } catch (err) {
         next(err);
     }
@@ -59,7 +61,7 @@ router.get('/resumes', authMiddleware, async (req, res) => {
         orderBy: { createdAt: sortType },
     });
 
-    return res.status(200).json({ status: 200, message: '이력서 목록 조회에 성공했습니다.', data: { resumes } });
+    return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.RESUMES.READ.LIST.SUCCEED, data: { resumes } });
 });
 
 // 이력서 상세 조회 API
@@ -83,10 +85,10 @@ router.get('/resumes/:resumeId', authMiddleware, async (req, res) => {
         },
     });
     if (!resume) {
-        return res.status(401).json({ status: 401, message: '이력서가 존재하지 않습니다.' });
+        return res.status(HTTP_STATUS.NOT_FOUND).json({ status: HTTP_STATUS.NOT_FOUND, message: MESSAGES.RESUMES.COMMON.NOT_FOUND });
     }
 
-    return res.status(200).json({ status: 200, message: '이력서 상세 조회에 성공했습니다.', data: { resume } });
+    return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.RESUMES.READ.DETAIL.SUCCEED, data: { resume } });
 });
 
 // 이력서 수정 API
@@ -105,7 +107,7 @@ router.patch('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
             where: { resumeId: +resumeId, UserId: +userId },
         });
         if (!resume) {
-            return res.status(401).json({ status: 401, message: '이력서가 존재하지 않습니다.' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ status: HTTP_STATUS.NOT_FOUND, message: MESSAGES.RESUMES.COMMON.NOT_FOUND });
         }
 
         // 이력서 수정
@@ -114,7 +116,9 @@ router.patch('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
             data: { title, introduce },
         });
 
-        return res.status(201).json({ status: 201, message: '이력서 수정이 성공했습니다.', data: { updatedResume } });
+        return res
+            .status(HTTP_STATUS.CREATED)
+            .json({ status: HTTP_STATUS.CREATED, message: MESSAGES.RESUMES.UPDATE.SUCCEED, data: { updatedResume } });
     } catch (err) {
         next(err);
     }
@@ -133,14 +137,16 @@ router.delete('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
             where: { resumeId: +resumeId, UserId: +userId },
         });
         if (!resume) {
-            return res.status(401).json({ status: 401, message: '이력서가 존재하지 않습니다.' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ status: HTTP_STATUS.NOT_FOUND, message: MESSAGES.RESUMES.COMMON.NOT_FOUND });
         }
         const deletedResume = await prisma.resumes.delete({
             where: { resumeId: +resumeId, UserId: +userId },
             select: { resumeId: true },
         });
 
-        return res.status(201).json({ status: 201, message: '이력서 삭제가 성공했습니다.', data: { deletedResume } });
+        return res
+            .status(HTTP_STATUS.CREATED)
+            .json({ status: HTTP_STATUS.CREATED, message: MESSAGES.RESUMES.DELETE.SUCCEED, data: { deletedResume } });
     } catch (err) {
         next(err);
     }
@@ -160,7 +166,7 @@ router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(Object.va
         // 이력서가 존재하는지 조회
         const resume = await prisma.resumes.findFirst({ where: { resumeId: +resumeId } });
         if (!resume) {
-            return res.status(401).json({ status: 401, message: '이력서가 존재하지 않습니다.' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ status: HTTP_STATUS.NOT_FOUND, message: MESSAGES.RESUMES.COMMON.COMMON.NOT_FOUND });
         }
 
         let resumeLog; // 이력서 변경 로그
@@ -187,7 +193,7 @@ router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(Object.va
             },
         );
 
-        return res.status(201).json({ status: 201, message: '지원 상태 변경에 성공했습니다.', data: { resumeLog } });
+        return res.status(HTTP_STATUS.CREATED).json({ status: HTTP_STATUS.CREATED, message: MESSAGES.RESUMES.STATE.SUCCEED, data: { resumeLog } });
     } catch (err) {
         next(err);
     }
@@ -197,6 +203,12 @@ router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(Object.va
 router.get('/resumes/:resumeId/log', authMiddleware, requiredRoles(Object.values(USER_ROLE)), async (req, res, next) => {
     // 이력서 ID 가져옴
     const { resumeId } = req.params;
+
+    // 이력서가 존재하는지 조회
+    const resume = await prisma.resumes.findFirst({ where: { resumeId: +resumeId } });
+    if (!resume) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({ status: HTTP_STATUS.NOT_FOUND, message: MESSAGES.RESUMES.COMMON.NOT_FOUND });
+    }
 
     // 이력서 로그 조회
     const resumeLogs = await prisma.resumeHistories.findMany({
@@ -221,7 +233,7 @@ router.get('/resumes/:resumeId/log', authMiddleware, requiredRoles(Object.values
         orderBy: { createdAt: 'desc' },
     });
 
-    return res.status(200).json({ status: 200, message: '이력서 로그 목록 조회에 성공했습니다.', data: { resumeLogs } });
+    return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.RESUMES.LOG.READ.LIST.SUCCEED, data: { resumeLogs } });
 });
 
 export default router;

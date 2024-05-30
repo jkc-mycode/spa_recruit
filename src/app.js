@@ -7,6 +7,7 @@ import ResumeRouter from './routers/resumes.router.js';
 import AuthRouter from './routers/auth.router.js';
 
 import errorHandingMiddleware from './middlewares/error-handing.middleware.js';
+import { HTTP_STATUS } from './constants/http-status.constant.js';
 
 dotenv.config();
 
@@ -17,7 +18,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.get('/', (req, res) => {
-    return res.status(200).json({ message: '테스트' });
+    return res.status(HTTP_STATUS.OK).json({ message: '테스트' });
 });
 
 app.use('/api', [UserRouter, ResumeRouter, AuthRouter]);
