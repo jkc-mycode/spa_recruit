@@ -19,13 +19,13 @@ export default async (req, res, next) => {
         const userId = decodedToken.userId;
 
         // JWT에서 꺼낸 userId로 실제 사용자가 있는지 확인
-        const user = await prisma.users.findFirst({ where: { userId: +userId } });
+        const user = await prisma.user.findFirst({ where: { userId: +userId } });
         if (!user) {
             return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.JWT.NO_USER });
         }
 
         // DB에 저장된 RefreshToken를 조회
-        const refreshToken = await prisma.refreshTokens.findFirst({ where: { UserId: user.userId } });
+        const refreshToken = await prisma.refreshToken.findFirst({ where: { UserId: user.userId } });
         // DB에 저장 된 RefreshToken이 없거나 전달 받은 값과 일치하지 않는 경우
         if (!refreshToken || refreshToken.token !== token) {
             return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.JWT.DISCARDED_TOKEN });

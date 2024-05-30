@@ -1,7 +1,7 @@
 // 미들웨어는 req, res, next를 필요로 하는 함수
 
-import { HTTP_STATUS } from '../constants/http-status.constant';
-import { MESSAGES } from '../constants/message.constant';
+import { HTTP_STATUS } from '../constants/http-status.constant.js';
+import { MESSAGES } from '../constants/message.constant.js';
 
 // 그렇기에 매개변수를 사용할 수 있는 미들웨어를 만들기 위해 미들웨어를 리턴하는 함수를 만듦
 export const requiredRoles = (roles) => {

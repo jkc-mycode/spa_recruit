@@ -18,7 +18,7 @@ router.post('/auth/sign-up', async (req, res, next) => {
         const { email, password, passwordConfirm, name, age, gender, profileImage } = validation;
 
         // 이메일 중복 확인
-        const isExistUser = await prisma.users.findFirst({ where: { email } });
+        const isExistUser = await prisma.user.findFirst({ where: { email } });
         if (isExistUser) {
             return res.status(HTTP_STATUS.CONFLICT).json({ status: HTTP_STATUS.CONFLICT, message: MESSAGES.AUTH.COMMON.EMAIL.DUPLICATED });
         }
@@ -34,7 +34,7 @@ router.post('/auth/sign-up', async (req, res, next) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // 사용자 생성
-        const user = await prisma.users.create({
+        const user = await prisma.user.create({
             data: {
                 email,
                 password: hashedPassword,
@@ -60,7 +60,7 @@ router.post('/auth/sign-in', async (req, res, next) => {
         const { email, password } = validation;
 
         // 입력받은 이메일로 사용자 조회
-        const user = await prisma.users.findFirst({ where: { email } });
+        const user = await prisma.user.findFirst({ where: { email } });
         if (!user) {
             return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.UNAUTHORIZED });
         }
@@ -76,10 +76,10 @@ router.post('/auth/sign-in', async (req, res, next) => {
         // res.setHeader('authorization', `Bearer ${AccessToken}`);
 
         // 현재 사용자의 Refresh토큰이 DB에 있는지 조회
-        const refreshToken = await prisma.refreshTokens.findFirst({ where: { UserId: user.userId } });
+        const refreshToken = await prisma.refreshToken.findFirst({ where: { UserId: user.userId } });
         if (!refreshToken) {
             // 없으면 새로운 토큰 생성
-            await prisma.refreshTokens.create({
+            await prisma.refreshToken.create({
                 data: {
                     UserId: user.userId,
                     token: RefreshToken,
@@ -89,7 +89,7 @@ router.post('/auth/sign-in', async (req, res, next) => {
             });
         } else {
             // 있으면 토큰 갱신
-            await prisma.refreshTokens.update({
+            await prisma.refreshToken.update({
                 where: { UserId: user.userId },
                 data: {
                     token: RefreshToken,
@@ -117,7 +117,7 @@ router.post('/auth/refresh', authRefreshTokenMiddleware, async (req, res, next) 
 
         // Refresh Token 재발급 (7일)
         const RefreshToken = jwt.sign({ userId: user.userId }, process.env.REFRESH_TOKEN_SECRET_KEY, { expiresIn: '7d' });
-        await prisma.refreshTokens.update({
+        await prisma.refreshToken.update({
             where: { UserId: user.userId },
             data: {
                 token: RefreshToken,
@@ -142,7 +142,7 @@ router.post('/auth/sign-out', authRefreshTokenMiddleware, async (req, res, next)
         const user = req.user;
 
         // DB에서 Refresh Token 삭제
-        const deletedUserId = await prisma.refreshTokens.delete({
+        const deletedUserId = await prisma.refreshToken.delete({
             where: { UserId: user.userId },
             select: { UserId: true },
         });

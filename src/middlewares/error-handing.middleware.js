@@ -1,4 +1,4 @@
-import { HTTP_STATUS } from '../constants/http-status.constant';
+import { HTTP_STATUS } from '../constants/http-status.constant.js';
 
 export default (err, req, res, next) => {
     console.error(err);

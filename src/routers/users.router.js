@@ -10,7 +10,7 @@ const router = express.Router();
 router.get('/users', authMiddleware, async (req, res) => {
     const { userId } = req.user;
 
-    const user = await prisma.users.findFirst({
+    const user = await prisma.user.findFirst({
         where: { userId },
         select: {
             userId: true,
@@ -22,7 +22,7 @@ router.get('/users', authMiddleware, async (req, res) => {
         },
     });
 
-    return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.USERS.READ.SUCCEED, data: { user } });
+    return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.USER.READ.SUCCEED, data: { user } });
 });
 
 export default router;

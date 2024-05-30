@@ -13,65 +13,65 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Users {
-  userId       Int      @id @default(autoincrement()) @map("userId")
-  email        String   @map("email")
+model User {
+  userId       Int      @id @default(autoincrement()) @map("user_id")
+  email        String   @unique @map("email")
   password     String   @map("password")
   name         String   @map("name")
   age          Int      @map("age")
   gender       String   @map("gender")
   role         String   @default("APPLICANT") @map("role")
-  profileImage String   @map("profileImage")
-  createdAt    DateTime @default(now()) @map("createdAt")
-  updatedAt    DateTime @updatedAt @map("updatedAt")
+  profileImage String   @map("profile_image")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  Resume       Resumes[] // 1명의 사용자는 여러 개의 이력서 작성 가능 (1:N 관계 형성)
-  RefreshToken RefreshTokens?
+  Resume       Resume[] // 1명의 사용자는 여러 개의 이력서 작성 가능 (1:N 관계 형성)
+  RefreshToken RefreshToken?
 
-  @@map("Users")
+  @@map("users")
 }
 
-model Resumes {
-  resumeId  Int      @id @default(autoincrement()) @map("resumeId")
-  UserId    Int      @map("UserId") // Users 테이블을 참조하는 외래키
+model Resume {
+  resumeId  Int      @id @default(autoincrement()) @map("resume_id")
+  UserId    Int      @map("user_id") // User 테이블을 참조하는 외래키
   title     String   @map("title")
   introduce String   @map("introduce") @db.Text
   state     String   @default("APPLY") @map("state")
-  createdAt DateTime @default(now()) @map("createdAt")
-  updatedAt DateTime @updatedAt @map("updatedAt")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  ResumeHistory ResumeHistories[] // 1개의 이력서에는 여러 개의 이력서 로그 기록이 존재 (1:N 관계 형성)
+  ResumeHistory ResumeHistory[] // 1개의 이력서에는 여러 개의 이력서 로그 기록이 존재 (1:N 관계 형성)
 
-  // Users 테이블과의 관계 설정
-  User Users @relation(fields: [UserId], references: [userId], onDelete: Cascade)
+  // User 테이블과의 관계 설정
+  User User @relation(fields: [UserId], references: [userId], onDelete: Cascade)
 
-  @@map("Resumes")
+  @@map("resumes")
 }
 
-model ResumeHistories {
-  resumeLogId Int      @id @default(autoincrement()) @map("resumeLogId")
-  ResumeId    Int      @map("ResumeId") // Resumes 테이블을 참조하는 외래키
-  RecruiterId Int      @map("RecruiterId")
-  oldState    String   @map("oldState")
-  newState    String   @map("newState")
+model ResumeHistory {
+  resumeLogId Int      @id @default(autoincrement()) @map("resume_log_id")
+  ResumeId    Int      @map("resume_id") // Resume 테이블을 참조하는 외래키
+  RecruiterId Int      @map("recruiter_id")
+  oldState    String   @map("old_state")
+  newState    String   @map("new_state")
   reason      String   @map("reason")
-  createdAt   DateTime @default(now()) @map("createdAt")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   // Rsumes 테이블과의 관계 설정
-  Resume Resumes @relation(fields: [ResumeId], references: [resumeId], onDelete: Cascade)
+  Resume Resume @relation(fields: [ResumeId], references: [resumeId], onDelete: Cascade)
 
-  @@map("ResumeHistories")
+  @@map("resume_histories")
 }
 
-model RefreshTokens {
-  tokenId   Int      @id @default(autoincrement()) @map("tokenId")
-  UserId    Int      @unique @map("UserId")
+model RefreshToken {
+  tokenId   Int      @id @default(autoincrement()) @map("token_id")
+  UserId    Int      @unique @map("user_id")
   token     String   @map("token")
   ip        String   @map("ip")
-  userAgent String   @map("userAgent")
-  createdAt DateTime @default(now()) @map("createdAt")
+  userAgent String   @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  User Users @relation(fields: [UserId], references: [userId], onDelete: Cascade)
+  User User @relation(fields: [UserId], references: [userId], onDelete: Cascade)
 
-  @@map("RefreshTokens")
+  @@map("refresh_tokens")
 }

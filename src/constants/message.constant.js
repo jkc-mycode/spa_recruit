@@ -59,7 +59,7 @@ export const MESSAGES = {
             SUCCEED: '토큰 재발급에 성공했습니다.',
         },
     },
-    USERS: {
+    USER: {
         READ: {
             SUCCEED: '내 정보 조회에 성공했습니다.',
         },
