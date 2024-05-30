@@ -188,7 +188,7 @@ router.delete('/:resumeId', async (req, res, next) => {
 });
 
 // 이력서 지원 상태 변경 API
-router.patch('/:resumeId/state', requiredRoles(Object.values(USER_ROLE)), async (req, res, next) => {
+router.patch('/:resumeId/state', requiredRoles([USER_ROLE.RECRUITER]), async (req, res, next) => {
     try {
         // 사용자 정보 가져옴
         const { userId } = req.user;
@@ -201,7 +201,7 @@ router.patch('/:resumeId/state', requiredRoles(Object.values(USER_ROLE)), async 
         // 이력서가 존재하는지 조회
         const resume = await prisma.resume.findFirst({ where: { resumeId: +resumeId } });
         if (!resume) {
-            return res.status(HTTP_STATUS.NOT_FOUND).json({ status: HTTP_STATUS.NOT_FOUND, message: MESSAGES.RESUMES.COMMON.COMMON.NOT_FOUND });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ status: HTTP_STATUS.NOT_FOUND, message: MESSAGES.RESUMES.COMMON.NOT_FOUND });
         }
 
         let resumeLog; // 이력서 변경 로그
@@ -235,7 +235,7 @@ router.patch('/:resumeId/state', requiredRoles(Object.values(USER_ROLE)), async 
 });
 
 // 이력서 로그 목록 조회 API
-router.get('/:resumeId/log', requiredRoles(Object.values(USER_ROLE)), async (req, res, next) => {
+router.get('/:resumeId/log', requiredRoles([USER_ROLE.RECRUITER]), async (req, res, next) => {
     // 이력서 ID 가져옴
     const { resumeId } = req.params;
 
@@ -246,26 +246,24 @@ router.get('/:resumeId/log', requiredRoles(Object.values(USER_ROLE)), async (req
     }
 
     // 이력서 로그 조회
-    const resumeLogs = await prisma.resumeHistory.findMany({
+    let resumeLogs = await prisma.resumeHistory.findMany({
         where: { ResumeId: +resumeId },
-        select: {
-            resumeLogId: true,
-            Resume: {
-                select: {
-                    User: {
-                        select: {
-                            name: true,
-                        },
-                    },
-                },
-            },
-            ResumeId: true,
-            oldState: true,
-            newState: true,
-            reason: true,
-            createdAt: true,
+        include: {
+            User: true,
         },
         orderBy: { createdAt: 'desc' },
+    });
+
+    resumeLogs = resumeLogs.map((log) => {
+        return {
+            resumeLogId: log.resumeLogId,
+            userName: log.User.name,
+            resumeId: log.ResumeId,
+            oldState: log.oldState,
+            newState: log.newState,
+            reason: log.reason,
+            createdAt: log.createdAt,
+        };
     });
 
     return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.RESUMES.LOG.READ.LIST.SUCCEED, data: { resumeLogs } });

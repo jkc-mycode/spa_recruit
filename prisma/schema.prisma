@@ -27,6 +27,7 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   Resume       Resume[] // 1명의 사용자는 여러 개의 이력서 작성 가능 (1:N 관계 형성)
+  ResumHistory ResumeHistory[]
   RefreshToken RefreshToken?
 
   @@map("users")
@@ -58,7 +59,10 @@ model ResumeHistory {
   reason      String   @map("reason")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  // Rsumes 테이블과의 관계 설정
+  // User 테이블과의 관계 설정
+  User User @relation(fields: [RecruiterId], references: [userId], onDelete: Cascade)
+
+  // Rsume 테이블과의 관계 설정
   Resume Resume @relation(fields: [ResumeId], references: [resumeId], onDelete: Cascade)
 
   @@map("resume_histories")
