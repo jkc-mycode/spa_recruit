@@ -1170,3 +1170,48 @@ router.post('/auth/sign-out', authRefreshTokenMiddleware, async (req, res, next)
 - 이후 AccessToken은 클라이언트에서 다뤄지는 데이터임
 
 - 그렇기에 서버측에서는 AccessToken을 삭제하는 것이 불가능 
+
+<br>
+
+### 6-3. 리눅스 서버에 Prisma 스키마 변경하고 데이터베이스 실행 안됨
+- 기존에 데이터베이스에서 파스칼 케이스, 카멜 케이스를 혼용에서 사용함
+
+- 그래서 해설 강의를 기반으로 데이터베이스를 싹 뜯어 고침
+
+- 데이터가 날라가는 건 어쩔 수 없다고 생각하고 Prisma 스키마를 수정함
+
+- 전부 수정 후 리눅스 서버에서도 git pull로 최신화 함
+
+![](https://velog.velcdn.com/images/my_code/post/46a2757b-2d9a-4a9c-9fa0-3ca5e4ee687d/image.png)
+
+- 그러고 코드를 수정하니 위와 같은 에러가 발생함
+
+- 분명 제대로 수정된 스키마로 최신화 했고, DB도 바뀐 컬럼으로 적용되었는데 똑같은 에러가 발생했음
+
+- 로컬에서 진행했던 과정을 다시 살펴보니 정말 간단한 이유였음
+
+- 바로 `npx prisma db push`를 리눅스 서버에서 실행시켜주지 않아서 발생한 문제였음
+
+- 근데 생각해보면 `npx prisma db push` 를 통해서 DB가 업데이트 되었는데 리눅스 서버에서도 이 과정이 필요한 걸까?
+
+- 로컬 서버, 리눅스 서버 모두 AWS의 RDS에 연결되어 있는데?
+
+- 인터넷과 Chat-GPT를 사용해서 이유를 찾아봤지만 뚜렷한 해답은 없었음
+
+- 인터넷과 Chat-GPT에서 말하는 이유는 다음과 같음
+  - Prisma 클라이언트 라이브러리 버전 불일치
+  - 캐시된 스키마 파일 사용
+  - 코드 또는 환경 설정 누락
+  - 리눅스 서버의 Prisma 스키마 동기화 지연
+
+- **결론**, 같은 클라우드 DB를 사용해서 위와 같은 에러가 발생하면 리눅스 서버에서도 한 번 더 동기화 시켜주는 게 좋음
+
+- 그리고 동기화 작업 시 `npx prisma db push` 보다는 `npx prisma migrate` 명령이 더 좋다고 함
+
+- (추가) 팀원분께서 비슷한 상황에 대해서 말씀해 주셨음
+
+- https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/generating-prisma-client
+
+- 스키마 같은 경우 node_module 밑에 Prisma client에 있는데 여길 통해서 쿼리 작업이 진행됨
+
+- 그런데 단지 pull를 통해서 최신을 받아오면 node_module은 받아오지 않기 때문에 쿼리 작업을 담당하는 Prisma client는 리눅스 서버에서 최신화되지 않는다는 이야기 같음
