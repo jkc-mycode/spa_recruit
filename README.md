@@ -21,6 +21,7 @@
 
 ## 1. 개발 기간
 - 2024.05.27 ~ 2024.05.29
+- 2024.05.30 1차 수정
 
 <br>
 
@@ -61,8 +62,6 @@ try {
 ```
 - 스키마 작성 및 테이블 생성
 ```javascript
-// prisma/schema.prisma
-
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
@@ -70,7 +69,8 @@ try {
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["omitApi"]
 }
 
 datasource db {
@@ -78,65 +78,87 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Users {
-  userId       Int      @id @default(autoincrement()) @map("userId")
-  email        String   @map("email")
+model User {
+  userId       Int      @id @default(autoincrement()) @map("user_id")
+  email        String   @unique @map("email")
   password     String   @map("password")
   name         String   @map("name")
   age          Int      @map("age")
   gender       String   @map("gender")
   role         String   @default("APPLICANT") @map("role")
-  profileImage String   @map("profileImage")
-  createdAt    DateTime @default(now()) @map("createdAt")
-  updatedAt    DateTime @updatedAt @map("updatedAt")
+  profileImage String   @map("profile_image")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  Resume Resumes[] // 1명의 사용자는 여러 개의 이력서 작성 가능 (1:N 관계 형성)
+  Resume       Resume[] // 1명의 사용자는 여러 개의 이력서 작성 가능 (1:N 관계 형성)
+  ResumeHistory ResumeHistory[]
+  RefreshToken RefreshToken?
 
-  @@map("Users")
+  @@map("users")
 }
 
-model Resumes {
-  resumeId  Int      @id @default(autoincrement()) @map("resumeId")
-  UserId    Int      @map("UserId") // Users 테이블을 참조하는 외래키
+model Resume {
+  resumeId  Int      @id @default(autoincrement()) @map("resume_id")
+  UserId    Int      @map("user_id") // User 테이블을 참조하는 외래키
   title     String   @map("title")
   introduce String   @map("introduce") @db.Text
   state     String   @default("APPLY") @map("state")
-  createdAt DateTime @default(now()) @map("createdAt")
-  updatedAt DateTime @updatedAt @map("updatedAt")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  ResumeHistory ResumeHistories[] // 1개의 이력서에는 여러 개의 이력서 로그 기록이 존재 (1:N 관계 형성)
+  ResumeHistory ResumeHistory[] // 1개의 이력서에는 여러 개의 이력서 로그 기록이 존재 (1:N 관계 형성)
 
-  // Users 테이블과의 관계 설정
-  User Users @relation(fields: [UserId], references: [userId], onDelete: Cascade)
+  // User 테이블과의 관계 설정
+  User User @relation(fields: [UserId], references: [userId], onDelete: Cascade)
 
-  @@map("Resumes")
+  @@map("resumes")
 }
 
-model ResumeHistories {
-  resumeLogId Int      @id @default(autoincrement()) @map("resumeLogId")
-  ResumeId    Int      @map("ResumeId") // Resumes 테이블을 참조하는 외래키
-  RecruiterId Int      @map("RecruiterId")
-  oldState    String   @map("oldState")
-  newState    String   @map("newState")
+model ResumeHistory {
+  resumeLogId Int      @id @default(autoincrement()) @map("resume_log_id")
+  ResumeId    Int      @map("resume_id") // Resume 테이블을 참조하는 외래키
+  RecruiterId Int      @map("recruiter_id")
+  oldState    String   @map("old_state")
+  newState    String   @map("new_state")
   reason      String   @map("reason")
-  createdAt   DateTime @default(now()) @map("createdAt")
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  // Resumes 테이블과의 관계 설정
-  Resume Resumes @relation(fields: [ResumeId], references: [resumeId], onDelete: Cascade)
+  // User 테이블과의 관계 설정
+  User User @relation(fields: [RecruiterId], references: [userId], onDelete: Cascade)
 
-  @@map("ResumeHistories")
+  // Resume 테이블과의 관계 설정
+  Resume Resume @relation(fields: [ResumeId], references: [resumeId], onDelete: Cascade)
+
+  @@map("resume_histories")
 }
+
+model RefreshToken {
+  tokenId   Int      @id @default(autoincrement()) @map("token_id")
+  UserId    Int      @unique @map("user_id")
+  token     String   @map("token")
+  ip        String   @map("ip")
+  userAgent String   @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  User User @relation(fields: [UserId], references: [userId], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
 ```
 
 <br>
 
 ### 4-2. 유효성 검증 (Joi)
 - 회원가입, 로그인, 이력서 작성 등 사용하는 유효성 검사가 달라서 따로 구현
+- (수정) 기존의 메시지 문자열을 constant로 만들어서 따로 관리
 ```javascript
 // src/schemas/joi.schema.js
 
 import Joi from 'joi';
 import { USER_GENDER } from '../constants/user.gender.constant.js';
+import { RESUME_STATE } from '../constants/resume.state.constant.js';
+import { MESSAGES } from '../constants/message.constant.js';
 
 // 회원가입 유효성 검사
 export const signUpSchema = Joi.object({
@@ -144,43 +166,43 @@ export const signUpSchema = Joi.object({
         .email({ minDomainSegments: 2, tlds: { allow: ['com', 'net', 'kr'] } })
         .required()
         .messages({
-            'string.base': '이메일은 문자열이어야 합니다.',
-            'string.empty': '이메일을 입력해주세요.',
-            'string.email': '이메일의 형식이 올바르지 않습니다',
-            'any.required': '이메일을 입력해주세요.',
+            'string.base': MESSAGES.AUTH.COMMON.EMAIL.BASE,
+            'string.empty': MESSAGES.AUTH.COMMON.EMAIL.REQUIRED,
+            'string.email': MESSAGES.AUTH.COMMON.EMAIL.EMAIL,
+            'any.required': MESSAGES.AUTH.COMMON.EMAIL.REQUIRED,
         }),
     password: Joi.string().required().pattern(new RegExp('^(?=.*[a-zA-Z])(?=.*[!@#$%^*+=-])(?=.*[0-9]).{6,15}$')).messages({
-        'string.base': '비밀번호는 문자열이어야 합니다.',
-        'string.empty': '비밀번호를 입력해주세요.',
-        'any.required': '비밀번호를 입력해주세요.',
-        'string.pattern.base': '비밀번호가 형식에 맞지 않습니다. (영문, 숫자, 특수문자 포함 6~15자)',
+        'string.base': MESSAGES.AUTH.COMMON.PASSWORD.BASE,
+        'string.empty': MESSAGES.AUTH.COMMON.PASSWORD.REQUIRED,
+        'any.required': MESSAGES.AUTH.COMMON.PASSWORD.REQUIRED,
+        'string.pattern.base': MESSAGES.AUTH.COMMON.PASSWORD.PATTERN,
     }),
     passwordConfirm: Joi.string().required().pattern(new RegExp('^(?=.*[a-zA-Z])(?=.*[!@#$%^*+=-])(?=.*[0-9]).{6,15}$')).messages({
-        'string.base': '비밀번호 확인은 문자열이어야 합니다.',
-        'string.empty': '비밀번호 확인을 입력해주세요.',
-        'any.required': '비밀번호 확인을 입력해주세요.',
-        'string.pattern.base': '비밀번호 확인의 형식이 맞지 않습니다. (영문, 숫자, 특수문자 포함 6~15자)',
+        'string.base': MESSAGES.AUTH.COMMON.PASSWORD_CONFIRM.BASE,
+        'string.empty': MESSAGES.AUTH.COMMON.PASSWORD_CONFIRM.REQUIRED,
+        'any.required': MESSAGES.AUTH.COMMON.PASSWORD_CONFIRM.REQUIRED,
+        'string.pattern.base': MESSAGES.AUTH.COMMON.PASSWORD_CONFIRM.PATTERN,
     }),
     name: Joi.string().required().messages({
-        'string.base': '이름은 문자열이어야 합니다.',
-        'string.empty': '이름을 입력해주세요.',
-        'any.required': '이름을 입력해주세요.',
+        'string.base': MESSAGES.AUTH.COMMON.NAME.BASE,
+        'string.empty': MESSAGES.AUTH.COMMON.NAME.REQUIRED,
+        'any.required': MESSAGES.AUTH.COMMON.NAME.REQUIRED,
     }),
     age: Joi.number().integer().required().messages({
-        'number.base': '나이는 정수를 입력해주세요.',
-        'any.required': '나이를 입력해주세요.',
+        'number.base': MESSAGES.AUTH.COMMON.AGE.BASE,
+        'any.required': MESSAGES.AUTH.COMMON.AGE.REQUIRED,
     }),
     gender: Joi.string()
         .valid(...Object.values(USER_GENDER))
         .required()
         .messages({
-            'string.base': '성별은 문자열이어야 합니다.',
-            'any.only': '성별은 [MALE, FEMALE] 중 하나여야 합니다.',
+            'string.base': MESSAGES.AUTH.COMMON.GENDER.BASE,
+            'any.only': MESSAGES.AUTH.COMMON.GENDER.ONLY,
         }),
     profileImage: Joi.string().required().messages({
-        'string.base': '프로필 사진은 문자열이어야 합니다.',
-        'string.empty': '프로필 사진을 입력해주세요.',
-        'any.required': '프로필 사진을 입력해주세요.',
+        'string.base': MESSAGES.AUTH.COMMON.PROFILE_IMAGE.BASE,
+        'string.empty': MESSAGES.AUTH.COMMON.PROFILE_IMAGE.REQUIRED,
+        'any.required': MESSAGES.AUTH.COMMON.PROFILE_IMAGE.REQUIRED,
     }),
 });
 
@@ -190,33 +212,52 @@ export const signInSchema = Joi.object({
         .email({ minDomainSegments: 2, tlds: { allow: ['com', 'net', 'kr'] } })
         .required()
         .messages({
-            'string.base': '이메일은 문자열이어야 합니다.',
-            'string.empty': '이메일을 입력해주세요.',
-            'string.email': '이메일의 형식이 올바르지 않습니다',
-            'any.required': '이메일을 입력해주세요.',
+            'string.base': MESSAGES.AUTH.COMMON.EMAIL.BASE,
+            'string.empty': MESSAGES.AUTH.COMMON.EMAIL.REQUIRED,
+            'string.email': MESSAGES.AUTH.COMMON.EMAIL.EMAIL,
+            'any.required': MESSAGES.AUTH.COMMON.EMAIL.REQUIRED,
         }),
     password: Joi.string().required().pattern(new RegExp('^(?=.*[a-zA-Z])(?=.*[!@#$%^*+=-])(?=.*[0-9]).{6,15}$')).messages({
-        'string.base': '비밀번호는 문자열이어야 합니다.',
-        'string.empty': '비밀번호를 입력해주세요.',
-        'any.required': '비밀번호를 입력해주세요.',
-        'string.pattern.base': '비밀번호가 형식에 맞지 않습니다. (영문, 숫자, 특수문자 포함 6~15자)',
+        'string.base': MESSAGES.AUTH.COMMON.PASSWORD.BASE,
+        'string.empty': MESSAGES.AUTH.COMMON.PASSWORD.REQUIRED,
+        'any.required': MESSAGES.AUTH.COMMON.PASSWORD.REQUIRED,
+        'string.pattern.base': MESSAGES.AUTH.COMMON.PASSWORD.PATTERN,
     }),
 });
 
 // 이력서 작성 유효성 검사
 export const resumeWriteSchema = Joi.object({
     title: Joi.string().required().messages({
-        'string.base': '제목은 문자열이어야 합니다.',
-        'string.empty': '제목을 입력해주세요.',
-        'any.required': '제목을 입력해주세요.',
+        'string.base': MESSAGES.RESUMES.COMMON.TITLE,
+        'string.empty': MESSAGES.RESUMES.COMMON.TITLE.REQUIRED,
+        'any.required': MESSAGES.RESUMES.COMMON.TITLE.REQUIRED,
     }),
     introduce: Joi.string().min(150).required().messages({
-        'string.base': '제목은 문자열이어야 합니다.',
-        'string.min': '자기소개는 150자 이상 작성해야 합니다.',
-        'string.empty': '제목을 입력해주세요.',
-        'any.required': '제목을 입력해주세요.',
+        'string.base': MESSAGES.RESUMES.COMMON.INTRODUCE.BASE,
+        'string.min': MESSAGES.RESUMES.COMMON.INTRODUCE.MIN,
+        'string.empty': MESSAGES.RESUMES.COMMON.INTRODUCE.REQUIRED,
+        'any.required': MESSAGES.RESUMES.COMMON.INTRODUCE.REQUIRED,
     }),
 });
+
+// 이력서 상태 변경 유효성 검사
+export const resumeStateSchema = Joi.object({
+    state: Joi.string()
+        .valid(...Object.values(RESUME_STATE))
+        .required()
+        .messages({
+            'string.base': MESSAGES.RESUMES.COMMON.STATE.BASE,
+            'string.empty': MESSAGES.RESUMES.COMMON.STATE.REQUIRED,
+            'any.required': MESSAGES.RESUMES.COMMON.STATE.REQUIRED,
+            'any.only': MESSAGES.RESUMES.COMMON.STATE.ONLY,
+        }),
+    reason: Joi.string().required().messages({
+        'string.base': MESSAGES.RESUMES.COMMON.REASON.BASE,
+        'string.empty': MESSAGES.RESUMES.COMMON.REASON.REQUIRED,
+        'any.required': MESSAGES.RESUMES.COMMON.REASON.REQUIRED,
+    }),
+});
+
 ```
 
 <br>
@@ -229,32 +270,36 @@ export const resumeWriteSchema = Joi.object({
 - 사용자 ID, 역할, 생성일시, 수정일시는 자동 생성됨
 
 - 보안을 위해 **비밀번호**는 평문(Plain Text)으로 저장하지 않고 **Hash** 된 값을 저장
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
 ```javascript
 // src/routers/auth.router.js
 
 // 회원가입 API
-router.post('/auth/sign-up', async (req, res, next) => {
+router.post('/sign-up', async (req, res, next) => {
     try {
         // 사용자 입력 유효성 검사
         const validation = await signUpSchema.validateAsync(req.body);
         const { email, password, passwordConfirm, name, age, gender, profileImage } = validation;
 
         // 이메일 중복 확인
-        const isExistUser = await prisma.users.findFirst({ where: { email } });
+        const isExistUser = await prisma.user.findFirst({ where: { email } });
         if (isExistUser) {
-            return res.status(400).json({ status: 400, message: '이미 가입 된 사용자입니다.' });
+            return res.status(HTTP_STATUS.CONFLICT).json({ status: HTTP_STATUS.CONFLICT, message: MESSAGES.AUTH.COMMON.EMAIL.DUPLICATED });
         }
 
         // 비밀번호 확인 결과
         if (password !== passwordConfirm) {
-            return res.status(400).json({ status: 400, message: '입력 한 두 비밀번호가 일치하지 않습니다.' });
+            return res
+                .status(HTTP_STATUS.BAD_REQUEST)
+                .json({ status: HTTP_STATUS.BAD_REQUEST, message: MESSAGES.AUTH.COMMON.PASSWORD_CONFIRM.INCONSISTENT });
         }
 
         // 비밀번호 암호화
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await bcrypt.hash(password, HASH_SALT);
 
         // 사용자 생성
-        const user = await prisma.users.create({
+        const user = await prisma.user.create({
             data: {
                 email,
                 password: hashedPassword,
@@ -265,13 +310,14 @@ router.post('/auth/sign-up', async (req, res, next) => {
             },
         });
 
-        const { password: pw, ...userData } = user;
+        const { password: pw, ...userData } = user; // == user.password = undefined;
 
-        return res.status(201).json({ status: 201, message: '회원가입에 성공했습니다.', data: { userData } });
+        return res.status(HTTP_STATUS.CREATED).json({ status: HTTP_STATUS.CREATED, message: MESSAGES.AUTH.SIGN_UP.SUCCEED, data: { userData } });
     } catch (err) {
         next(err);
     }
 });
+
 ```
 
 <br>
@@ -286,36 +332,53 @@ router.post('/auth/sign-up', async (req, res, next) => {
 - **RefreshToken**(Payload에 `사용자 ID`를 포함하고, 유효기한이 `7일`)을 생성
 
 - 데이터베이스에 **RefreshToken**을 **생성** 또는 **갱신**
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
+
+- (수정) Prisma upsert()를 통해 조건문 대체
 ```javascript
 // src/routers/auth.router.js
 
 // 로그인 API
-router.post('/auth/sign-in', async (req, res, next) => {
+router.post('/sign-in', async (req, res, next) => {
     try {
         const validation = await signInSchema.validateAsync(req.body);
         const { email, password } = validation;
 
         // 입력받은 이메일로 사용자 조회
-        const user = await prisma.users.findFirst({ where: { email } });
-        if (!user) {
-            return res.status(401).json({ status: 401, message: '인증 정보가 유효하지 않습니다.' });
-        }
+        const user = await prisma.user.findFirst({ where: { email } });
 
         // 사용자 비밀번호와 입력한 비밀번호 일치 확인
-        if (!(await bcrypt.compare(password, user.password))) {
-            return res.status(401).json({ status: 401, message: '인증 정보가 유효하지 않습니다.' });
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.UNAUTHORIZED });
         }
 
         // 로그인 성공하면 JWT 토큰 발급
-        const AccessToken = jwt.sign({ userId: user.userId }, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: '12h' });
-        const RefreshToken = jwt.sign({ userId: user.userId }, process.env.REFRESH_TOKEN_SECRET_KEY, { expiresIn: '7d' });
+        const AccessToken = jwt.sign({ userId: user.userId }, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: ACCESS_TOKEN_EXPIRED_IN });
+        const RefreshToken = jwt.sign({ userId: user.userId }, process.env.REFRESH_TOKEN_SECRET_KEY, { expiresIn: REFRESH_TOKEN_EXPIRED_IN });
         // res.setHeader('authorization', `Bearer ${AccessToken}`);
 
+        // prisma upsert를 통해서 기존 토큰이 있으면 업데이트 없으면 생성
+        await prisma.refreshToken.upsert({
+            where: { UserId: user.userId },
+            update: {
+                token: RefreshToken,
+                createdAt: new Date(Date.now()),
+            },
+            create: {
+                UserId: user.userId,
+                token: RefreshToken,
+                ip: req.ip,
+                userAgent: req.headers['user-agent'],
+            },
+        });
+
         // 현재 사용자의 Refresh토큰이 DB에 있는지 조회
-        const refreshToken = await prisma.refreshTokens.findFirst({ where: { UserId: user.userId } });
+        /* 
+        const refreshToken = await prisma.refreshToken.findFirst({ where: { UserId: user.userId } });
         if (!refreshToken) {
             // 없으면 새로운 토큰 생성
-            await prisma.refreshTokens.create({
+            await prisma.refreshToken.create({
                 data: {
                     UserId: user.userId,
                     token: RefreshToken,
@@ -325,7 +388,7 @@ router.post('/auth/sign-in', async (req, res, next) => {
             });
         } else {
             // 있으면 토큰 갱신
-            await prisma.refreshTokens.update({
+            await prisma.refreshToken.update({
                 where: { UserId: user.userId },
                 data: {
                     token: RefreshToken,
@@ -334,9 +397,9 @@ router.post('/auth/sign-in', async (req, res, next) => {
                     createdAt: new Date(Date.now()),
                 },
             });
-        }
+        }*/
 
-        return res.status(200).json({ status: 200, message: '로그인에 성공했습니다.', data: { AccessToken, RefreshToken } });
+        return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.AUTH.SIGN_IN, data: { AccessToken, RefreshToken } });
     } catch (err) {
         next(err);
     }
@@ -354,9 +417,15 @@ router.post('/auth/sign-in', async (req, res, next) => {
 - Payload에 담긴 **사용자 ID**를 이용하여 **사용자 정보를 조회**
 
 - 조회 된 사용자 정보를 `req.user`에 담고, 다음 동작을 진행
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
+
+- (수정) 데이터베이스에서 사용자 정보 중 `password`를 제외한 데이터를 가져오기 위해 Prisma `omit` 기능 사용
 ```javascript
 // src/middlewares/auth.access.token.middleware.js
 
+import { HTTP_STATUS } from '../constants/http-status.constant.js';
+import { MESSAGES } from '../constants/message.constant.js';
 import { prisma } from '../utils/prisma.util.js';
 import jwt from 'jsonwebtoken';
 
@@ -365,21 +434,20 @@ export default async (req, res, next) => {
     try {
         // 헤더에서 Access 토큰 가져옴
         const authorization = req.headers['authorization'];
-        console.log(req.headers);
-        if (!authorization) throw new Error('인증 정보가 없습니다.');
+        if (!authorization) throw new Error(MESSAGES.AUTH.COMMON.JWT.NO_TOKEN);
 
         // Access 토큰이 Bearer 형식인지 확인
         const [tokenType, token] = authorization.split(' ');
-        if (tokenType !== 'Bearer') throw new Error('지원하지 않는 인증 방식입니다.');
+        if (tokenType !== 'Bearer') throw new Error(MESSAGES.AUTH.COMMON.JWT.NOT_SUPPORTED_TYPE);
 
         // 서버에서 발급한 JWT가 맞는지 검증
-        const decodedToken = jwt.verify(token, process.env.CUSTOMIZED_SECRET_KEY);
+        const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET_KEY);
         const userId = decodedToken.userId;
 
         // JWT에서 꺼낸 userId로 실제 사용자가 있는지 확인
-        const user = await prisma.users.findFirst({ where: { userId: +userId } });
+        const user = await prisma.user.findFirst({ where: { userId: +userId }, omit: { password: true } });
         if (!user) {
-            return res.status(401).json({ status: 401, message: '인증 정보와 일치하는 사용자가 없습니다.' });
+            return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.JWT.NO_USER });
         }
 
         // 조회된 사용자 정보를 req.user에 넣음
@@ -389,14 +457,17 @@ export default async (req, res, next) => {
     } catch (err) {
         switch (err.name) {
             case 'TokenExpiredError':
-                return res.status(401).json({ status: 401, message: '인증 정보가 만료되었습니다.' });
+                return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.JWT.EXPIRED });
             case 'JsonWebTokenError':
-                return res.status(401).json({ status: 401, message: '인증 정보가 유효하지 않습니다.' });
+                return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.JWT.INVALID });
             default:
-                return res.status(401).json({ status: 401, message: err.message ?? '비정상적인 요청입니다.' });
+                return res
+                    .status(HTTP_STATUS.UNAUTHORIZED)
+                    .json({ status: HTTP_STATUS.UNAUTHORIZED, message: err.message ?? MESSAGES.AUTH.COMMON.JWT.ETC });
         }
     }
 };
+
 ```
 
 <br>
@@ -404,30 +475,32 @@ export default async (req, res, next) => {
 ### 4-6. 내 정보 조회 API
 - 사용자 정보는 인증 Middleware(`req.user`)를 통해서 전달 받음
 
-- userId값으로 **Users 테이블**에서 사용자 정보를 조회
+- ~~userId값으로 **Users 테이블**에서 사용자 정보를 조회~~
 
 - **사용자 ID, 이메일, 이름, 역할, 생성일시, 수정일시**를 반환
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
+
+- `authMiddleware`를 통해서 사용자 검증을 거치기 때문에 DB에서 사용자 검색을 할 필요가 없음
 ```javascript
 // src/routers/users.router.js
 
+import express from 'express';
+import authMiddleware from '../middlewares/auth.access.token.middleware.js';
+import { HTTP_STATUS } from '../constants/http-status.constant.js';
+import { MESSAGES } from '../constants/message.constant.js';
+
+const router = express.Router();
+
 // 내 정보 조회 API
-router.get('/users', authMiddleware, async (req, res) => {
-    const { userId } = req.user;
+router.get('/', authMiddleware, async (req, res) => {
+    const user = req.user;
 
-    const user = await prisma.users.findFirst({
-        where: { userId },
-        select: {
-            userId: true,
-            email: true,
-            name: true,
-            role: true,
-            createdAt: true,
-            updatedAt: true,
-        },
-    });
-
-    return res.status(200).json({ message: '내 정보 조회에 성공했습니다.', data: { user } });
+    return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.USER.READ.SUCCEED, data: { user } });
 });
+
+export default router;
+
 ```
 
 
@@ -441,11 +514,13 @@ router.get('/users', authMiddleware, async (req, res) => {
 - **Joi**를 통한 유효성 검사
 
 - 이력서 ID, 지원 상태, 생성일시, 수정일시는 자동 생성
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
 ```javascript
 // src/routers/resumes.router.js
 
 //이력서 생성 API
-router.post('/resumes', authMiddleware, async (req, res, next) => {
+router.post('/', async (req, res, next) => {
     try {
         // 사용자 ID를 가져옴
         const { userId } = req.user;
@@ -454,7 +529,7 @@ router.post('/resumes', authMiddleware, async (req, res, next) => {
         const { title, introduce } = validation;
 
         // 이력서 생성
-        const resume = await prisma.resumes.create({
+        const resume = await prisma.resume.create({
             data: {
                 title,
                 introduce,
@@ -462,7 +537,7 @@ router.post('/resumes', authMiddleware, async (req, res, next) => {
             },
         });
 
-        return res.status(201).json({ status: 201, message: '이력서 생성에 성공했습니다.', data: { resume } });
+        return res.status(HTTP_STATUS.CREATED).json({ status: HTTP_STATUS.CREATED, message: MESSAGES.RESUMES.CREATE.SUCCEED, data: { resume } });
     } catch (err) {
         next(err);
     }
@@ -483,36 +558,62 @@ router.post('/resumes', authMiddleware, async (req, res, next) => {
 - **현재 로그인 한 사용자**가 작성한 이력서 목록만 조회
 
 - **역할**이 `RECRUITER` 인 경우 **모든 사용자의 이력서를 조회**할 수 있음
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
+
+- (수정) `where절`에는 객체가 들어가기에 `whereCondition`이라는 객체를 만들어서 조건문을 통해서 값을 결정함
+
+- (수정) `sort` 쿼리에 `desc`, `acs` 둘 다 아닐 경우에 대해서 처리하지 않아서 추가함
 ```javascript
 // src/routers/resumes.router.js
 
 // 이력서 목록 조회 API
-router.get('/resumes', authMiddleware, async (req, res) => {
+router.get('/', async (req, res) => {
     // 사용자를 가져옴
     const user = req.user;
     // 정렬 조건을 req.query로 가져옴
-    const sortType = req.query.sort.toLowerCase();
-    // 필터링 조건을 가져옴
-    const stateFilter = req.query.status.toUpperCase();
+    let sortType = req.query.sort.toLowerCase();
 
-    const resumes = await prisma.resumes.findMany({
-        where: {
-            // AND 배열 연산을 통해서 필터링
-            AND: [user.role === 'RECRUITER' ? {} : { UserId: +user.userId }, stateFilter === '' ? {} : { state: stateFilter }],
-        },
-        select: {
-            resumeId: true,
-            User: { select: { name: true } },
-            title: true,
-            introduce: true,
-            state: true,
-            createdAt: true,
-            updatedAt: true,
+    if (sortType !== 'desc' || sortType !== 'asc') {
+        sortType = 'desc';
+    }
+
+    const whereCondition = {};
+    // 채용 담당자인 경우
+    if (user.role === USER_ROLE.RECRUITER) {
+        // 필터링 조건을 가져옴
+        const stateFilter = req.query.status.toUpperCase();
+
+        if (stateFilter) {
+            whereCondition.state = stateFilter;
+        }
+    }
+    // 채용 담당자가 아닌 경우
+    else {
+        whereCondition.UserId = user.userId;
+    }
+
+    let resumes = await prisma.resume.findMany({
+        where: whereCondition,
+        include: {
+            User: true,
         },
         orderBy: { createdAt: sortType },
     });
 
-    return res.status(200).json({ status: 200, message: '이력서 목록 조회에 성공했습니다.', data: { resumes } });
+    resumes = resumes.map((resume) => {
+        return {
+            resumeId: resume.resumeId,
+            userName: resume.User.name,
+            title: resume.title,
+            introduce: resume.introduce,
+            state: resume.state,
+            createdAt: resume.createdAt,
+            updatedAt: resume.updatedAt,
+        };
+    });
+
+    return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.RESUMES.READ.LIST.SUCCEED, data: { resumes } });
 });
 ```
 
@@ -528,34 +629,48 @@ router.get('/resumes', authMiddleware, async (req, res) => {
 - **역할**이 `RECRUITER` 인 경우 **이력서 작성 사용자와 일치하지 않아도** 이력서를 조회할 수 있음
 
 - **작성자 ID가 아닌 작성자 이름을 반환**하기 위해 스키마에 정의 한 **Relation을 활용**해 조회 (중첩 SELECT 문법 사용)
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
+
+- (수정) `where절`에는 객체가 들어가기에 `whereCondition`이라는 객체를 만들어서 조건문을 통해서 값을 결정함
 ```javascript
 // src/routers/resumes.router.js
 
 // 이력서 상세 조회 API
-router.get('/resumes/:resumeId', authMiddleware, async (req, res) => {
+router.get('/:resumeId', async (req, res) => {
     // 사용자를 가져옴
     const user = req.user;
     // 이력서 ID를 가져옴
     const { resumeId } = req.params;
 
+    const whereCondition = { resumeId: +resumeId };
+    // 채용 담당자가 아닌 경우
+    if (user.role !== USER_ROLE.RECRUITER) {
+        whereCondition.UserId = user.userId;
+    }
+
     // 이력서 ID, 작성자 ID가 모두 일치한 이력서 조회
-    const resume = await prisma.resumes.findFirst({
-        where: user.role === 'RECRUITER' ? { resumeId: +resumeId } : { resumeId: +resumeId, UserId: +user.userId },
-        select: {
-            resumeId: true,
-            User: { select: { name: true } },
-            title: true,
-            introduce: true,
-            state: true,
-            createdAt: true,
-            updatedAt: true,
+    let resume = await prisma.resume.findFirst({
+        where: whereCondition,
+        include: {
+            User: true,
         },
     });
     if (!resume) {
-        return res.status(401).json({ status: 401, message: '이력서가 존재하지 않습니다.' });
+        return res.status(HTTP_STATUS.NOT_FOUND).json({ status: HTTP_STATUS.NOT_FOUND, message: MESSAGES.RESUMES.COMMON.NOT_FOUND });
     }
 
-    return res.status(200).json({ status: 200, message: '이력서 상세 조회에 성공했습니다.', data: { resume } });
+    resume = {
+        resumeId: resume.resumeId,
+        userName: resume.User.name,
+        title: resume.title,
+        introduce: resume.introduce,
+        state: resume.state,
+        createdAt: resume.createdAt,
+        updatedAt: resume.updatedAt,
+    };
+
+    return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.RESUMES.READ.DETAIL.SUCCEED, data: { resume } });
 });
 ```
 
@@ -573,11 +688,15 @@ router.get('/resumes/:resumeId', authMiddleware, async (req, res) => {
 - **현재 로그인 한 사용자가 작성한 이력서**만 수정할 수 있음
 
 - 이력서 조회 시 **이력서 ID, 작성자 ID가 모두 일치**해야 함
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
+
+- (수정) 제목, 자기소개가 수정이 될 수도 안될 수도 있기에 `...` 연산자를 통해서 구현
 ```javascript
 // src/routers/resumes.router.js
 
 // 이력서 수정 API
-router.patch('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
+router.patch('/:resumeId', async (req, res, next) => {
     try {
         // 사용자 ID를 가져옴
         const { userId } = req.user;
@@ -588,20 +707,25 @@ router.patch('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
         const { title, introduce } = validation;
 
         // 이력서 ID, 작성자 ID가 모두 일치한 이력서 조회
-        const resume = await prisma.resumes.findFirst({
+        const resume = await prisma.resume.findFirst({
             where: { resumeId: +resumeId, UserId: +userId },
         });
         if (!resume) {
-            return res.status(401).json({ status: 401, message: '이력서가 존재하지 않습니다.' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ status: HTTP_STATUS.NOT_FOUND, message: MESSAGES.RESUMES.COMMON.NOT_FOUND });
         }
 
         // 이력서 수정
-        const updatedResume = await prisma.resumes.update({
+        const updatedResume = await prisma.resume.update({
             where: { resumeId: +resumeId, UserId: +userId },
-            data: { title, introduce },
+            data: {
+                ...(title && { title }),
+                ...(introduce && { introduce }),
+            },
         });
 
-        return res.status(201).json({ status: 201, message: '이력서 수정이 성공했습니다.', data: { updatedResume } });
+        return res
+            .status(HTTP_STATUS.CREATED)
+            .json({ status: HTTP_STATUS.CREATED, message: MESSAGES.RESUMES.UPDATE.SUCCEED, data: { updatedResume } });
     } catch (err) {
         next(err);
     }
@@ -620,11 +744,13 @@ router.patch('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
 - 이력서 조회 시 **이력서 ID, 작성자 ID가 모두 일치**해야 함
 
 - DB에서 이력서 정보를 직접 삭제
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
 ```javascript
 // src/routers/resumes.router.js
 
 // 이력서 삭제 API
-router.delete('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
+router.delete('/:resumeId', async (req, res, next) => {
     try {
         // 사용자 ID를 가져옴
         const { userId } = req.user;
@@ -632,18 +758,22 @@ router.delete('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
         const { resumeId } = req.params;
 
         // 이력서 ID, 작성자 ID가 모두 일치한 이력서 조회
-        const resume = await prisma.resumes.findFirst({
+        const resume = await prisma.resume.findFirst({
             where: { resumeId: +resumeId, UserId: +userId },
         });
         if (!resume) {
-            return res.status(401).json({ status: 401, message: '이력서가 존재하지 않습니다.' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ status: HTTP_STATUS.NOT_FOUND, message: MESSAGES.RESUMES.COMMON.NOT_FOUND });
         }
-        const deletedResume = await prisma.resumes.delete({
+
+        // 이력서 삭제
+        const deletedResume = await prisma.resume.delete({
             where: { resumeId: +resumeId, UserId: +userId },
             select: { resumeId: true },
         });
 
-        return res.status(201).json({ status: 201, message: '이력서 삭제가 성공했습니다.', data: { deletedResume } });
+        return res
+            .status(HTTP_STATUS.CREATED)
+            .json({ status: HTTP_STATUS.CREATED, message: MESSAGES.RESUMES.DELETE.SUCCEED, data: { deletedResume } });
     } catch (err) {
         next(err);
     }
@@ -656,10 +786,16 @@ router.delete('/resumes/:resumeId', authMiddleware, async (req, res, next) => {
 - 사용자 정보는 인증 Middleware(`req.user`)를 통해서 전달 받음
 
 - 허용 역할은 Middleware 사용 시 배열로 전달 받음
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
 ```javascript
 // src/middlewares/role.middleware.js
 
 // 미들웨어는 req, res, next를 필요로 하는 함수
+
+import { HTTP_STATUS } from '../constants/http-status.constant.js';
+import { MESSAGES } from '../constants/message.constant.js';
+
 // 그렇기에 매개변수를 사용할 수 있는 미들웨어를 만들기 위해 미들웨어를 리턴하는 함수를 만듦
 export const requiredRoles = (roles) => {
     return async (req, res, next) => {
@@ -671,7 +807,7 @@ export const requiredRoles = (roles) => {
             // 역할이 포함되면 다음으로 진행
             return next();
         }
-        return res.status(401).json({ status: 401, message: '접근 권한이 없습니다.' });
+        return res.status(HTTP_STATUS.FORBIDDEN).json({ status: HTTP_STATUS.FORBIDDEN, message: MESSAGES.AUTH.COMMON.FORBIDDEN });
     };
 };
 ```
@@ -686,11 +822,13 @@ export const requiredRoles = (roles) => {
 -  **지원 상태, 사유**를 **Request Body**(**`req.body`**)로 전달 받음
 
 - 이력서 정보 수정과 이력서 로그 생성을 **Transaction**으로 묶어서 실행
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
 ```javascript
 // src/routers/resumes.router.js
 
 // 이력서 지원 상태 변경 API
-router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(Object.values(USER_ROLE)), async (req, res, next) => {
+router.patch('/:resumeId/state', requiredRoles([USER_ROLE.RECRUITER]), async (req, res, next) => {
     try {
         // 사용자 정보 가져옴
         const { userId } = req.user;
@@ -701,9 +839,9 @@ router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(Object.va
         const { state, reason } = validation;
 
         // 이력서가 존재하는지 조회
-        const resume = await prisma.resumes.findFirst({ where: { resumeId: +resumeId } });
+        const resume = await prisma.resume.findFirst({ where: { resumeId: +resumeId } });
         if (!resume) {
-            return res.status(401).json({ status: 401, message: '이력서가 존재하지 않습니다.' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ status: HTTP_STATUS.NOT_FOUND, message: MESSAGES.RESUMES.COMMON.NOT_FOUND });
         }
 
         let resumeLog; // 이력서 변경 로그
@@ -712,10 +850,10 @@ router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(Object.va
         await prisma.$transaction(
             async (tx) => {
                 // 이력서 수정
-                const updatedResume = await tx.resumes.update({ where: { resumeId: +resumeId }, data: { state } });
+                const updatedResume = await tx.resume.update({ where: { resumeId: +resumeId }, data: { state } });
 
                 // 이력서 변경 로그 생성
-                resumeLog = await tx.resumeHistories.create({
+                resumeLog = await tx.resumeHistory.create({
                     data: {
                         RecruiterId: +userId,
                         ResumeId: +resumeId,
@@ -730,7 +868,7 @@ router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(Object.va
             },
         );
 
-        return res.status(201).json({ status: 201, message: '지원 상태 변경에 성공했습니다.', data: { resumeLog } });
+        return res.status(HTTP_STATUS.CREATED).json({ status: HTTP_STATUS.CREATED, message: MESSAGES.RESUMES.STATE.SUCCEED, data: { resumeLog } });
     } catch (err) {
         next(err);
     }
@@ -745,38 +883,46 @@ router.patch('/resumes/:resumeId/state', authMiddleware, requiredRoles(Object.va
 - **생성일시** 기준 **최신순**으로 조회
 
 - **채용 담당자 이름**을 반환하기 위해 스키마에 정의 한 **Relation**을 활용해 조회
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
+
+- (수정) 중첩 SELECT가 아니라 `include`를 사용해서 참조된 User 정보를 가져옴
 ```javascript
 // src/routers/resumes.router.js
 
 // 이력서 로그 목록 조회 API
-router.get('/resumes/:resumeId/log', authMiddleware, requiredRoles(Object.values(USER_ROLE)), async (req, res, next) => {
+router.get('/:resumeId/log', requiredRoles([USER_ROLE.RECRUITER]), async (req, res, next) => {
     // 이력서 ID 가져옴
     const { resumeId } = req.params;
 
+    // 이력서가 존재하는지 조회
+    const resume = await prisma.resume.findFirst({ where: { resumeId: +resumeId } });
+    if (!resume) {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({ status: HTTP_STATUS.NOT_FOUND, message: MESSAGES.RESUMES.COMMON.NOT_FOUND });
+    }
+
     // 이력서 로그 조회
-    const resumeLogs = await prisma.resumeHistories.findMany({
+    let resumeLogs = await prisma.resumeHistory.findMany({
         where: { ResumeId: +resumeId },
-        select: {
-            resumeLogId: true,
-            Resume: {
-                select: {
-                    User: {
-                        select: {
-                            name: true,
-                        },
-                    },
-                },
-            },
-            ResumeId: true,
-            oldState: true,
-            newState: true,
-            reason: true,
-            createdAt: true,
+        include: {
+            User: true,
         },
         orderBy: { createdAt: 'desc' },
     });
 
-    return res.status(200).json({ status: 200, message: '이력서 로그 목록 조회에 성공했습니다.', data: { resumeLogs } });
+    resumeLogs = resumeLogs.map((log) => {
+        return {
+            resumeLogId: log.resumeLogId,
+            userName: log.User.name,
+            resumeId: log.ResumeId,
+            oldState: log.oldState,
+            newState: log.newState,
+            reason: log.reason,
+            createdAt: log.createdAt,
+        };
+    });
+
+    return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.RESUMES.LOG.READ.LIST.SUCCEED, data: { resumeLogs } });
 });
 ```
 
@@ -792,35 +938,44 @@ router.get('/resumes/:resumeId/log', authMiddleware, requiredRoles(Object.values
 - 이 때, RefreshToken은 DB에 보관하기 때문에 DB에 접근해서 조회
 
 - Payload에 담긴 사용자 ID와 일치하는 사용자가 없는 경우에는 `폐기 된 인증 정보입니다` 라고 출력
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
+
+- (수정) 데이터베이스에서 사용자 정보 중 `password`를 제외한 데이터를 가져오기 위해 Prisma `omit` 기능 사용
 ```javascript
 // src/middlewares/auth.refresh.token.middleware.js
+
+import { prisma } from '../utils/prisma.util.js';
+import jwt from 'jsonwebtoken';
+import { HTTP_STATUS } from '../constants/http-status.constant.js';
+import { MESSAGES } from '../constants/message.constant.js';
 
 // RefreshToken 인증 미들웨어
 export default async (req, res, next) => {
     try {
         // 헤더에서 Refresh 토큰 가져옴
         const authorization = req.headers['authorization'];
-        if (!authorization) throw new Error('인증 정보가 없습니다.');
+        if (!authorization) throw new Error(MESSAGES.AUTH.COMMON.JWT.NO_TOKEN);
 
         // Refresh 토큰이 Bearer 형식인지 확인
         const [tokenType, token] = authorization.split(' ');
-        if (tokenType !== 'Bearer') throw new Error('지원하지 않는 인증 방식입니다.');
+        if (tokenType !== 'Bearer') throw new Error(MESSAGES.AUTH.COMMON.JWT.NOT_SUPPORTED_TYPE);
 
         // 서버에서 발급한 JWT가 맞는지 검증
         const decodedToken = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET_KEY);
         const userId = decodedToken.userId;
 
         // JWT에서 꺼낸 userId로 실제 사용자가 있는지 확인
-        const user = await prisma.users.findFirst({ where: { userId: +userId } });
+        const user = await prisma.user.findFirst({ where: { userId: +userId }, omit: { password: true } });
         if (!user) {
-            return res.status(401).json({ status: 401, message: '인증 정보와 일치하는 사용자가 없습니다.' });
+            return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.JWT.NO_USER });
         }
 
         // DB에 저장된 RefreshToken를 조회
-        const refreshToken = await prisma.refreshTokens.findFirst({ where: { UserId: user.userId } });
+        const refreshToken = await prisma.refreshToken.findFirst({ where: { UserId: user.userId } });
         // DB에 저장 된 RefreshToken이 없거나 전달 받은 값과 일치하지 않는 경우
         if (!refreshToken || refreshToken.token !== token) {
-            return res.status(401).json({ status: 401, message: '폐기 된 인증 정보입니다.' });
+            return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.JWT.DISCARDED_TOKEN });
         }
 
         // 조회된 사용자 정보를 req.user에 넣음
@@ -830,11 +985,13 @@ export default async (req, res, next) => {
     } catch (err) {
         switch (err.name) {
             case 'TokenExpiredError':
-                return res.status(401).json({ status: 401, message: '인증 정보가 만료되었습니다.' });
+                return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.JWT.EXPIRED });
             case 'JsonWebTokenError':
-                return res.status(401).json({ status: 401, message: '인증 정보가 유효하지 않습니다.' });
+                return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: HTTP_STATUS.UNAUTHORIZED, message: MESSAGES.AUTH.COMMON.JWT.INVALID });
             default:
-                return res.status(401).json({ status: 401, message: err.message ?? '비정상적인 요청입니다.' });
+                return res
+                    .status(HTTP_STATUS.UNAUTHORIZED)
+                    .json({ status: HTTP_STATUS.UNAUTHORIZED, message: err.message ?? MESSAGES.AUTH.COMMON.JWT.ETC });
         }
     }
 };
@@ -854,21 +1011,23 @@ export default async (req, res, next) => {
 - **RefreshToken** (**Payload**: **사용자 ID** 포함, **유효기한**: **`7일`**)을 재발급
 
 - RefreshToken은 **DB에서 보관**하기 때문에 DB의 데이터를 갱신
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
 ```javascript
 // src/routers/auth.router.js
 
 // 토큰 재발급 API
-router.post('/auth/refresh', authRefreshTokenMiddleware, async (req, res, next) => {
+router.post('/refresh', authRefreshTokenMiddleware, async (req, res, next) => {
     try {
         // 사용자 정보 가져옴
         const user = req.user;
 
         // Access Token 재발급 (12시간)
-        const AccessToken = jwt.sign({ userId: user.userId }, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: '12h' });
+        const AccessToken = jwt.sign({ userId: user.userId }, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: ACCESS_TOKEN_EXPIRED_IN });
 
         // Refresh Token 재발급 (7일)
-        const RefreshToken = jwt.sign({ userId: user.userId }, process.env.REFRESH_TOKEN_SECRET_KEY, { expiresIn: '7d' });
-        await prisma.refreshTokens.update({
+        const RefreshToken = jwt.sign({ userId: user.userId }, process.env.REFRESH_TOKEN_SECRET_KEY, { expiresIn: REFRESH_TOKEN_EXPIRED_IN });
+        await prisma.refreshToken.update({
             where: { UserId: user.userId },
             data: {
                 token: RefreshToken,
@@ -878,7 +1037,9 @@ router.post('/auth/refresh', authRefreshTokenMiddleware, async (req, res, next) 
             },
         });
 
-        return res.status(201).json({ status: 201, message: '토큰 재발급에 성공했습니다.', data: { AccessToken, RefreshToken } });
+        return res
+            .status(HTTP_STATUS.CREATED)
+            .json({ status: HTTP_STATUS.CREATED, message: MESSAGES.AUTH.TOKEN_REFRESH.SUCCEED, data: { AccessToken, RefreshToken } });
     } catch (err) {
         next(err);
     }
@@ -895,6 +1056,8 @@ router.post('/auth/refresh', authRefreshTokenMiddleware, async (req, res, next) 
 - RefreshToken은 **DB에서 보관**하기 때문에 DB의 데이터를 삭제
 
 - 실제로는 AccessToken이 만료되기 전까지는 AccessToken이 필요한 API는 사용 가능함
+
+- (수정) 상태 코드와 에러 메시지 문자열을 constant로 따로 관리
 ```javascript
 // src/routers/auth.router.js
 
@@ -905,12 +1068,12 @@ router.post('/auth/sign-out', authRefreshTokenMiddleware, async (req, res, next)
         const user = req.user;
 
         // DB에서 Refresh Token 삭제
-        const deletedUserId = await prisma.refreshTokens.delete({
+        const deletedUserId = await prisma.refreshToken.delete({
             where: { UserId: user.userId },
             select: { UserId: true },
         });
 
-        return res.status(201).json({ status: 201, message: '로그아웃 되었습니다.', data: { deletedUserId } });
+        return res.status(HTTP_STATUS.OK).json({ status: HTTP_STATUS.OK, message: MESSAGES.AUTH.SIGN_OUT.SUCCEED, data: { deletedUserId } });
     } catch (err) {
         next(err);
     }

@@ -1,5 +1,4 @@
 import express from 'express';
-import { prisma } from '../utils/prisma.util.js';
 import authMiddleware from '../middlewares/auth.access.token.middleware.js';
 import { HTTP_STATUS } from '../constants/http-status.constant.js';
 import { MESSAGES } from '../constants/message.constant.js';
